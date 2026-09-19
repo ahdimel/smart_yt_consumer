@@ -46,8 +46,15 @@ Structure:
    - **Watchable minutes / total minutes.** How much of the runtime earns being watched. This is
      the number the reader acts on.
    - **Fluff fraction** — share of runtime that is ads, padding, teasers, restatement, B-roll
-     narration and engagement bait, with the timestamp ranges. This is the honest inflation
-     metric and it varies enormously (measured range so far: 0.5% to 34%).
+     narration and engagement bait. **Compute this, do not estimate it.** In pass 1 you listed
+     each cut span with a timestamp range; sum those durations and divide by total runtime.
+     Show your arithmetic in pass 1 so the number is auditable. A fluff figure that does not
+     correspond to a specific list of timestamp ranges is wrong. Measured range so far: under
+     1% (an unpadded lecture) to 34% (a listicle carried by anecdote).
+     Count as fluff: sponsor reads, subscribe/Patreon/newsletter appeals, cold-open teasers
+     that pre-announce the payoff, recaps of what was just said, restated thesis, B-roll
+     narration, and anecdotes that only illustrate a point already made. A personal story is
+     fluff when the claim survives without it — which is usually.
    - **Word compression** — transcript words -> summary words. Report it, but do NOT read it as a
      fluff signal. Measured across a wide spread of videos it barely moves (5.7:1 to 10.9:1) and
      it inverts: the thinnest video in testing compressed *least*, the densest lecture compressed

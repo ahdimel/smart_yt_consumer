@@ -10,7 +10,7 @@ log(){ printf '%s  %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 command -v yt-dlp >/dev/null || { log "FATAL: yt-dlp not on PATH"; exit 1; }
 command -v claude >/dev/null || { log "FATAL: claude CLI not on PATH"; exit 1; }
 
-git pull --rebase --quiet 2>/dev/null || log "warn: git pull failed, continuing with local queue"
+git pull --rebase --autostash --quiet 2>/dev/null || log "warn: git pull failed, continuing with local queue"
 
 shopt -s nullglob
 FILES=(queue/*.txt)
