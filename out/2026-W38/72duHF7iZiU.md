@@ -8,7 +8,7 @@ verdict: **Skim.** One strong argument (demand elasticity, not task automation, 
 watchable: ~22 of 53 min
 fluff: 13%
 compression: 11,230 → 2,062 words (5.4:1)
-added: 2026-09-19T10:15
+added: 2026-09-19T16:26:00
 ---
 
 ## The argument the video exists to make
