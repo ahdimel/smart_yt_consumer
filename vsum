@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# vsum <youtube-url> — fetch a video's transcript + top comments into a model-input bundle.
+#   Prints the bundle path. With the `claude` CLI installed, also writes the summary.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+URL="${1:?usage: vsum <youtube-url>}"
+CACHE="${VSUM_CACHE:-$ROOT/.cache}"
+OUT="${VSUM_OUT:-$ROOT/out}"
+mkdir -p "$CACHE" "$OUT"
+
+ID="$(yt-dlp --skip-download --print '%(id)s' --no-warnings "$URL" | tail -1)"
+STEM="$CACHE/$ID"
+
+if [[ ! -f "$STEM.info.json" ]]; then
+  echo "fetching $ID ..." >&2
+  yt-dlp --skip-download --no-warnings \
+    --write-auto-subs --write-subs --sub-langs "en.*" --sub-format vtt \
+    --write-info-json --write-comments \
+    --extractor-args "youtube:comment_sort=top;max_comments=150,120,30,2" \
+    -o "$CACHE/%(id)s" "$URL" >&2
+else
+  echo "cached $ID" >&2
+fi
+
+BUNDLE="$CACHE/$ID.bundle.txt"
+python3 "$ROOT/lib/bundle.py" "$STEM" > "$BUNDLE"
+echo "bundle: $BUNDLE ($(wc -w < "$BUNDLE" | tr -d ' ') words)" >&2
+
+if command -v claude >/dev/null 2>&1; then
+  SLUG="$(date +%Y-%m-%d)-$ID"
+  claude -p "$(cat "$ROOT/prompts/summarize.md")" < "$BUNDLE" > "$OUT/$SLUG.md"
+  echo "$OUT/$SLUG.md"
+else
+  echo "$BUNDLE"
+fi
