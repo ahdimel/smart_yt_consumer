@@ -18,6 +18,11 @@ git add queue && git commit -m "queue: <video title or url>" && git push
 
 Then tell the user it is queued and will appear in this week's digest. That's the whole job.
 
+Pushing to your own branch instead of `main` is fine — `drain` adopts any branch whose diff
+touches only `queue/`, merges it, and deletes the branch. Don't open a PR for a queued URL;
+it just creates cleanup. Branches that change anything outside `queue/` are left alone for
+normal review.
+
 ## If you are on the user's Mac
 
 `./drain` — processes everything in `queue/`, writes summaries to `out/<ISO-week>/`,

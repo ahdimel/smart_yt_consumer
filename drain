@@ -12,6 +12,32 @@ command -v claude >/dev/null || { log "FATAL: claude CLI not on PATH"; exit 1; }
 
 git pull --rebase --autostash --quiet 2>/dev/null || log "warn: git pull failed, continuing with local queue"
 
+# Claude Code on the web pushes to its own branch rather than to main. Adopt any
+# such branch whose diff touches ONLY queue/ -- that is a queued URL, not a code
+# change. Anything broader is a real change and is left alone for review.
+adopt_queue_branches(){
+  git fetch origin --prune --quiet 2>/dev/null || return 0
+  local ref br changed
+  while read -r ref; do
+    [[ -z "$ref" ]] && continue
+    br="${ref#origin/}"
+    changed="$(git diff --name-only main.."$ref" 2>/dev/null)"
+    [[ -z "$changed" ]] && continue
+    if grep -qv '^queue/' <<<"$changed"; then
+      log "branch $br touches more than queue/ -- leaving for review"
+      continue
+    fi
+    if git merge --no-edit -q "$ref" 2>/dev/null; then
+      log "adopted queued URL(s) from $br"
+      git push -q origin --delete "$br" 2>/dev/null && log "  deleted remote $br"
+    else
+      git merge --abort 2>/dev/null
+      log "warn: could not merge $br"
+    fi
+  done < <(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/claude/*')
+}
+adopt_queue_branches
+
 shopt -s nullglob
 FILES=(queue/*.txt)
 [[ ${#FILES[@]} -eq 0 ]] && { log "queue empty"; exit 0; }
