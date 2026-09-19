@@ -1,0 +1,106 @@
+<title>Week of {{WEEK}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f6f7f9; --card:#ffffff; --ink:#17202c; --body:#2c3846;
+    --muted:#63707f; --rule:#dde2e8; --accent:#0d6f7d; --accent-soft:#e3f0f1;
+    --contest:#a04e39;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+      --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+      --contest:#d78a72;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+    --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+    --contest:#d78a72;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--body);
+    font-family:"Newsreader",Georgia,serif; font-size:1.0625rem; line-height:1.62; margin:0}
+  .wrap{max-width:41rem; margin:0 auto; padding-inline:20px; padding-block:2.5rem 4rem}
+  .mono,.ts{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:.7rem}
+  h1{font-size:clamp(1.9rem,6vw,2.7rem); line-height:1.1; font-weight:600; color:var(--ink);
+    margin:0 0 .8rem; letter-spacing:-.017em; text-wrap:balance}
+  .dek{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted);
+    letter-spacing:.05em; margin:0 0 2rem}
+
+  nav{position:sticky; top:env(safe-area-inset-top,0px); background:var(--paper);
+    border-bottom:1px solid var(--rule); margin-bottom:2.5rem; z-index:5;
+    display:flex; flex-wrap:wrap; gap:.35rem .9rem; padding:.75rem 0}
+  nav a{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.04em;
+    color:var(--muted); text-decoration:none; border-bottom:1px solid transparent}
+  nav a:hover,nav a:focus-visible{color:var(--accent); border-bottom-color:var(--accent)}
+
+  article{border-top:1px solid var(--rule); padding-top:2.2rem; margin-top:3.5rem;
+    scroll-margin-top:4rem}
+  article:first-of-type{margin-top:0; border-top:0; padding-top:0}
+  .kicker{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); display:flex; flex-wrap:wrap;
+    gap:.35rem .8rem; margin-bottom:.7rem}
+  h2{font-size:1.5rem; line-height:1.2; font-weight:600; color:var(--ink);
+    margin:0 0 1.1rem; text-wrap:balance; letter-spacing:-.01em}
+  h3{font-size:.72rem; font-family:"IBM Plex Mono",monospace; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+    margin:2.2rem 0 1rem; padding-bottom:.45rem; border-bottom:1px solid var(--rule)}
+  h4{font-size:1.05rem; font-weight:600; color:var(--ink); margin:1.8rem 0 .7rem; line-height:1.3}
+  h5{font-size:.95rem; font-weight:600; color:var(--ink); margin:1.4rem 0 .5rem}
+
+  .verdict{background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--accent);
+    border-radius:3px; padding:1.1rem 1.2rem; margin-bottom:1rem}
+  .verdict p{margin:0 0 .7rem; color:var(--ink); font-size:1rem}
+  .verdict p:last-child{margin-bottom:0}
+  .cost{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted); line-height:1.65}
+  .cost b{color:var(--ink); font-weight:600}
+  .src{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.68rem;
+    color:var(--accent); text-decoration:none; margin-bottom:1.6rem;
+    border-bottom:1px solid transparent}
+  .src:hover,.src:focus-visible{border-bottom-color:var(--accent)}
+
+  p{margin:0 0 1.15rem}
+  ul{margin:0 0 1.15rem; padding-left:1.15rem}
+  li{margin-bottom:.6rem}
+  blockquote{margin:0 0 1.15rem; padding-left:1rem; border-left:2px solid var(--contest);
+    color:var(--body)}
+  .ts{font-size:.67rem; font-weight:500; color:var(--accent); background:var(--accent-soft);
+    padding:.15em .4em; border-radius:2px; white-space:nowrap; margin-left:.25em;
+    font-variant-numeric:tabular-nums}
+  .mono{font-size:.9em}
+  a{color:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:.9rem; margin:0 0 1.15rem}
+  td,th{padding:.4rem .6rem .4rem 0; text-align:left; border-bottom:1px solid var(--rule)}
+
+  .foot{margin-top:4rem; padding-top:1.4rem; border-top:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace; font-size:.67rem; color:var(--muted); line-height:1.75}
+  @media (max-width:420px){ .wrap{padding-block:2rem 3rem} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">smart_yt_consumer &middot; {{TAG}}</p>
+  <h1>Week of {{WEEK}}</h1>
+  <p class="dek">{{COUNT}} video(s) &middot; stripped to claims &middot; comments read for corrections</p>
+
+  <nav>{{NAV}}</nav>
+
+  {{ARTICLES}}
+
+  <p class="foot">
+    Generated by <a href="https://github.com/ahdimel/smart_yt_consumer">smart_yt_consumer</a>.<br>
+    Manual captions preferred over auto; top comments by likes, creator and low-signal excluded.<br>
+    Fluff measured from timestamped ad, teaser, restatement and B-roll spans.
+  </p>
+</div>
+<style>
+  .contested{border-left:2px solid var(--contest); padding-left:1rem; margin-top:1.8rem}
+  .contested h3{color:var(--contest); border-bottom-color:var(--contest); margin-top:0}
+  .contested ul{list-style:none; padding:0; display:grid; gap:1rem}
+  .contested li{margin:0}
+</style>

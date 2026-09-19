@@ -71,3 +71,35 @@ answers, and the question only where it sets up a distinction the answer depends
 
 Be honest. If the video is wrong, or its evidence is weaker than its confidence, say so. If it is
 genuinely good, say that too — do not manufacture criticism for balance.
+
+
+## Output format
+
+Emit **only** the finished summary file — no preamble, no "here is your summary". Pass 1 is
+thinking; it does not appear in the output. Start at the first character of the front matter:
+
+```
+---
+nav: <2-3 words for the week's nav bar, e.g. "Rare earths">
+title: <the video's title>
+channel: <channel name>
+duration: <e.g. 27m26s or 1h49m>
+views: <e.g. 4.76M views>
+verdict: <one or two sentences, starting with **Watch it.** / **Skim.** / **Skip the video.**>
+watchable: <e.g. ~25 of 27 min>
+fluff: <e.g. 6%>
+compression: <e.g. 5,746 - 785 words (7.3:1)>
+added: <ISO timestamp>
+---
+```
+
+Then the body, in markdown. Rules the renderer depends on:
+
+- **No H1 and no title line** — the title comes from the front matter.
+- Section headings are `##`. Sub-headings are `###`.
+- The final section must be titled exactly `## What the comments contest`. If the comments
+  hold nothing substantive, keep the heading and say so in one line — and note it if the
+  section is polluted with astroturfed plugs or scams, which is itself worth knowing.
+- Put timestamps in backticks — `14:32` — so they render as jump chips. Use them liberally;
+  they are how the reader jumps to anything they want in full.
+- Wrap lines at about 98 columns.

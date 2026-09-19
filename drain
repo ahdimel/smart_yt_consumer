@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# drain — process every queued URL, rebuild this week's page, publish the artifact.
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
+
+log(){ printf '%s  %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
+
+command -v yt-dlp >/dev/null || { log "FATAL: yt-dlp not on PATH"; exit 1; }
+command -v claude >/dev/null || { log "FATAL: claude CLI not on PATH"; exit 1; }
+
+git pull --rebase --quiet 2>/dev/null || log "warn: git pull failed, continuing with local queue"
+
+shopt -s nullglob
+FILES=(queue/*.txt)
+[[ ${#FILES[@]} -eq 0 ]] && { log "queue empty"; exit 0; }
+
+WEEK="$(python3 -c 'import sys;sys.path.insert(0,"lib");import week;print(week.iso_week())')"
+mkdir -p "out/$WEEK"
+ADDED=0
+
+for f in "${FILES[@]}"; do
+  URL="$(tr -d '[:space:]' < "$f")"
+  [[ -z "$URL" ]] && { rm -f "$f"; continue; }
+  log "processing $URL"
+
+  ID="$(yt-dlp --skip-download --print '%(id)s' --no-warnings "$URL" 2>/dev/null | tail -1)"
+  if [[ -z "$ID" ]]; then log "  could not resolve id, leaving queued"; continue; fi
+
+  if [[ -f "out/$WEEK/$ID.md" ]]; then
+    log "  already summarized this week, dropping from queue"; rm -f "$f"; continue
+  fi
+
+  BUNDLE="$(VSUM_OUT="out/$WEEK" ./vsum "$URL" 2>/dev/null | tail -1)"
+  if [[ ! -s "$BUNDLE" ]]; then log "  fetch failed, leaving queued"; continue; fi
+
+  if claude -p "$(cat prompts/summarize.md)" < "$BUNDLE" > "out/$WEEK/$ID.md.tmp" 2>/dev/null \
+     && [[ -s "out/$WEEK/$ID.md.tmp" ]]; then
+    mv "out/$WEEK/$ID.md.tmp" "out/$WEEK/$ID.md"
+    rm -f "$f"; ADDED=$((ADDED+1)); log "  summarized -> out/$WEEK/$ID.md"
+  else
+    rm -f "out/$WEEK/$ID.md.tmp"; log "  summarize failed, leaving queued"
+  fi
+done
+
+[[ $ADDED -eq 0 ]] && { log "nothing new"; exit 0; }
+
+python3 lib/week.py "$WEEK" >/dev/null && log "rebuilt out/$WEEK/index.html"
+
+git add -A out queue && git commit -q -m "digest: $ADDED video(s) for $WEEK" && git push -q \
+  && log "pushed" || log "warn: git push failed"
+
+# Republish the week's artifact. A stored URL means update-in-place; no meta.json
+# means it is a new week, so publish fresh and record the URL that comes back.
+claude -p "Publish out/$WEEK/index.html as this week's artifact, following the publishing
+rule in CLAUDE.md. Read out/$WEEK/meta.json first: if it has artifact_url, pass that as the
+url parameter to update in place. If there is no meta.json, publish fresh and then write
+{\"week\":\"$WEEK\",\"artifact_url\":\"<returned url>\",\"published\":\"$(date +%F)\"} to
+out/$WEEK/meta.json and commit it. Report only the final URL." >/dev/null 2>&1 \
+  && log "artifact published" || log "warn: artifact publish failed — run ./drain-publish by hand"

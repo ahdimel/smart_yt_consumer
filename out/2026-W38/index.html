@@ -1,0 +1,208 @@
+<title>Week of 14–20 September 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f6f7f9; --card:#ffffff; --ink:#17202c; --body:#2c3846;
+    --muted:#63707f; --rule:#dde2e8; --accent:#0d6f7d; --accent-soft:#e3f0f1;
+    --contest:#a04e39;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+      --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+      --contest:#d78a72;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+    --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+    --contest:#d78a72;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--body);
+    font-family:"Newsreader",Georgia,serif; font-size:1.0625rem; line-height:1.62; margin:0}
+  .wrap{max-width:41rem; margin:0 auto; padding-inline:20px; padding-block:2.5rem 4rem}
+  .mono,.ts{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:.7rem}
+  h1{font-size:clamp(1.9rem,6vw,2.7rem); line-height:1.1; font-weight:600; color:var(--ink);
+    margin:0 0 .8rem; letter-spacing:-.017em; text-wrap:balance}
+  .dek{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted);
+    letter-spacing:.05em; margin:0 0 2rem}
+
+  nav{position:sticky; top:env(safe-area-inset-top,0px); background:var(--paper);
+    border-bottom:1px solid var(--rule); margin-bottom:2.5rem; z-index:5;
+    display:flex; flex-wrap:wrap; gap:.35rem .9rem; padding:.75rem 0}
+  nav a{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.04em;
+    color:var(--muted); text-decoration:none; border-bottom:1px solid transparent}
+  nav a:hover,nav a:focus-visible{color:var(--accent); border-bottom-color:var(--accent)}
+
+  article{border-top:1px solid var(--rule); padding-top:2.2rem; margin-top:3.5rem;
+    scroll-margin-top:4rem}
+  article:first-of-type{margin-top:0; border-top:0; padding-top:0}
+  .kicker{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); display:flex; flex-wrap:wrap;
+    gap:.35rem .8rem; margin-bottom:.7rem}
+  h2{font-size:1.5rem; line-height:1.2; font-weight:600; color:var(--ink);
+    margin:0 0 1.1rem; text-wrap:balance; letter-spacing:-.01em}
+  h3{font-size:.72rem; font-family:"IBM Plex Mono",monospace; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+    margin:2.2rem 0 1rem; padding-bottom:.45rem; border-bottom:1px solid var(--rule)}
+  h4{font-size:1.05rem; font-weight:600; color:var(--ink); margin:1.8rem 0 .7rem; line-height:1.3}
+  h5{font-size:.95rem; font-weight:600; color:var(--ink); margin:1.4rem 0 .5rem}
+
+  .verdict{background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--accent);
+    border-radius:3px; padding:1.1rem 1.2rem; margin-bottom:1rem}
+  .verdict p{margin:0 0 .7rem; color:var(--ink); font-size:1rem}
+  .verdict p:last-child{margin-bottom:0}
+  .cost{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted); line-height:1.65}
+  .cost b{color:var(--ink); font-weight:600}
+  .src{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.68rem;
+    color:var(--accent); text-decoration:none; margin-bottom:1.6rem;
+    border-bottom:1px solid transparent}
+  .src:hover,.src:focus-visible{border-bottom-color:var(--accent)}
+
+  p{margin:0 0 1.15rem}
+  ul{margin:0 0 1.15rem; padding-left:1.15rem}
+  li{margin-bottom:.6rem}
+  blockquote{margin:0 0 1.15rem; padding-left:1rem; border-left:2px solid var(--contest);
+    color:var(--body)}
+  .ts{font-size:.67rem; font-weight:500; color:var(--accent); background:var(--accent-soft);
+    padding:.15em .4em; border-radius:2px; white-space:nowrap; margin-left:.25em;
+    font-variant-numeric:tabular-nums}
+  .mono{font-size:.9em}
+  a{color:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:.9rem; margin:0 0 1.15rem}
+  td,th{padding:.4rem .6rem .4rem 0; text-align:left; border-bottom:1px solid var(--rule)}
+
+  .foot{margin-top:4rem; padding-top:1.4rem; border-top:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace; font-size:.67rem; color:var(--muted); line-height:1.75}
+  @media (max-width:420px){ .wrap{padding-block:2rem 3rem} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">smart_yt_consumer &middot; 2026-W38</p>
+  <h1>Week of 14–20 September 2026</h1>
+  <p class="dek">4 video(s) &middot; stripped to claims &middot; comments read for corrections</p>
+
+  <nav><a href="#sarah-paine-how-mao-conquered-china">Mao</a><a href="#china-found-something-better-than-oil">Rare earths</a><a href="#america-s-40-trillion-debt-is-actually-f">$40T debt</a><a href="#once-you-get-money-upgrade-these-8-thing">Money upgrades</a></nav>
+
+  <article id="sarah-paine-how-mao-conquered-china">
+<div class="kicker"><span>Dwarkesh Patel</span><span>1h49m</span><span>lecture + interview</span></div>
+<h2>Sarah Paine — How Mao conquered China</h2>
+<div class="verdict"><p><strong>Watch the whole thing.</strong> No sponsor, no teaser, no restatement — 109 minutes of load-bearing argument, and the densest item in this batch.</p><p class="cost"><b>109 of 109 min</b> worth watching &middot; <b>&lt;1% fluff</b> &middot; 17,263 → 1,731 words (10.0:1)</p></div>
+<a class="src" href="https://youtu.be/4l3Sa8ImGFQ">watch on YouTube &rarr;</a>
+<h4>What Mao actually was</h4>
+<p>Not a theorist of war between states — that's Clausewitz (bilateral land war), Sun Tzu (holding a continental empire by coercion and deception), Mahan and Corbett (maritime power). Mao theorized <strong>triangle building</strong>: an insurgent constructing passion, creativity and rationality — people, military, government — <em>from nothing</em>, inside a host state, until the shadow government replaces the real one. That is why his work exported so well to the decolonizing world: agricultural and underdeveloped, like China and unlike industrial Russia.  <span class="ts">02:49</span>–<span class="ts">04:51</span></p>
+<p>Paine's framing, stated flatly: the military genius who reassembled a shattered country after 40 years of failure, and the psychopath incapable of running a peacetime economy. 40 million starved in the Great Famine — the only nationwide famine in Chinese history, because it was caused by policy rather than weather. Mao kept exporting grain through it; food exports were the government's income. The dead were disproportionately rural peasant girls. (Figure from Yang Jisheng, who mined provincial archives as a journalist; his father was among the dead.) <span class="ts">04:51</span>–<span class="ts">08:54</span></p>
+<h4>The framework: Clausewitz's two indispensable qualities</h4>
+<p><em>Coup d'œil</em> — the glimmer of inner light that finds truth in the darkest hour — and the determination to follow it. Paine tracks four Maos: <strong>propagandist, social scientist, operational commander, grand strategist.</strong>  <span class="ts">13:00</span>–<span class="ts">15:05</span></p>
+<h5>Propagandist</h5>
+<p>"The Communist Party can overthrow the enemy only by holding propaganda pamphlets in one hand and bullets in the other." Propaganda was one of just six departments in the original shadow government. Every military unit carried a <strong>20-member propaganda team</strong>; Mao called propaganda work the Red Army's first-priority work — categorically unlike Western soldiering. Messengers surfaced local grievances for the Party to fix, generating allegiance, while reporting back to centre. Messages were kept epigrammatic — "Arm the peasants" — functionally tweets. He wrote simple eight-character couplets for the semi-literate <em>and</em> difficult grass-writing for the intellectuals he needed before he had educated peasants, then set poems to known tunes so they spread by singing.  <span class="ts">15:05</span>–<span class="ts">23:20</span></p>
+<p>His international broadcast channel was foreign journalists, above all Edgar Snow.</p>
+<h5>Social scientist</h5>
+<p>Between 1926 and 1933 Mao ran survey after survey, inventorying the countryside "down to the last pitchfork and last chicken." Finding: <strong>6% of the rural population owned 80% of the land.</strong> He segmented it — 70% poor peasants, 20% middle, 10% exploitative — and set out to mobilize the bottom 80% to crush the top.</p>
+<p>The sequencing was deliberate and duplicitous: <strong>propagandize first, distribute land later.</strong> Rich peasants were preserved because "rich peasant production is indispensable" (a line cut from the published collected works) until the civil war was won and the guns could turn. Middle peasants got a bait-and-switch — land now, collectivization later. Class status was decided by local vote, then routed through layers of party approval before returning to announce who received land and who took a bullet.  <span class="ts">23:20</span>–<span class="ts">29:25</span></p>
+<h5>Operational commander</h5>
+<p>Mao's early career was <strong>being right as a minority view</strong> and being vindicated. Li Lisan tried to seize cities on Moscow's instruction (Nanchang 1927, Changsha 1930) — both disasters; Mao's diagnosis was that he "did not understand the protracted nature" of the war and sought a decisive battle far too early. Xiang Ying was sent to fire Mao personally for ceding territory; the resulting defend-everything strategy produced the Long March, in which the Communists lost 95% of their forces. ("Decimate means lose 10%. Losing 95%, you need a whole new verb.")</p>
+<p>Doctrine:</p>
+<ul><li><strong>Base areas</strong> on provincial boundaries where central authority doesn't reach. Four prerequisites: defensible terrain, Red Army presence, organized workers and peasants, strong party organization.</li><li><strong>Six prerequisites to fight; you need at least two.</strong> The most important is active popular support. Enemy weakness, exhaustion and error can appear fast — terrain cannot, so choose it carefully.</li><li><strong>Annihilation, not attrition.</strong> The weak destroy one small unit at a time and let the cumulative effect shift the balance. Only the strong can afford attrition.</li><li><strong>Two services</strong>: guerrilla and conventional. And a correction to the popular image — <em>"Regular forces are of primary importance because it is they who alone are capable of producing the decision. There is in guerrilla warfare no such thing as a war-winning battle."</em></li><li><strong>A terminal point of retreat</strong>, chosen in advance. Mao picked Yan'an because it was near the Soviet border.</li><li><strong>Disintegrate the enemy army</strong>: insinuate workers and peasants into it as soldiers, porters and cooks. Paired with leniency — recruit willing POWs, release unwilling ones, so the contrast between Communist leniency and Nationalist brutality becomes stark. (Sun Tzu: never put your enemy on death ground.)</li></ul>
+<p>Allies no one had assembled before: peasants, <strong>women</strong> (half the population, badly treated, therefore natural revolutionaries — he promised absolute equality and was decades ahead), youth, intellectuals, minorities (offered self-determination — a promise, Paine notes, that became unenforceable the moment it could be broken; ask the Tibetans and Uyghurs), and the enemy army. <span class="ts">29:25</span>–<span class="ts">43:38</span></p>
+<h5>Three stages of people's war</h5>
+<p>Defensive → stalemate → offensive, and the activities are <strong>cumulative, not sequential</strong> — each phase adds capability rather than replacing it. Two hard-won points:</p>
+<p>The <strong>phase-one-to-two transition is the dangerous one</strong>: what looked like isolated banditry is now legible as an insurgency bent on regime change, so the state changes strategy while you are still weak. Westmoreland spent Vietnam trying to force exactly this concentration; the North Vietnamese had read their Mao and declined.</p>
+<p><strong>Phase three requires a big friend.</strong> Conventional war needs an industrial base China lacked, which is the real reason Yan'an was the retreat point — Mao was fighting his way toward Soviet supply. This is the secret sauce of people's war.  <span class="ts">43:38</span>–<span class="ts">45:40</span></p>
+<h5>The claim that reframes the war</h5>
+<p><strong>Mao did not fight the war against Japan. The Nationalists did.</strong> Every piece of conventional fighting was theirs, bar Mao's Hundred Regiments campaign in 1940 — which drew the Japanese "three alls" reprisal (kill all, burn all, loot all), destroyed base areas across North China, was never repeated, and never appeared in his collected works. While the Nationalists were destroyed fighting Japan, the Communists mobilized the countryside and later took the credit.  <span class="ts">47:46</span></p>
+<h4>The interview</h4>
+<p><strong>Why the shrewd commander produced the Great Leap Forward</strong> <span class="ts">1:02:14</span> — Paine rejects the premise that welfare was ever the objective: staying in power was. Beyond that, the underlying theory was simply wrong (labour theories of value don't account for services), and no individual has expertise in everything — Churchill won the war and was voted out immediately after. Communes weren't only ideological; they were the mechanism for extending central control over a shattered continental population by controlling who eats.</p>
+<p><strong>Mao vs. Stalin</strong> <span class="ts">1:04:14</span> — the Holodomor was <em>intentional</em>; the Great Leap was delusion. Russia had been industrializing since the late 19th century and had institutions China lacked. Compare the wreckage: Taiping (20–30M dead), decades of peasant rebellions, warlords, the Communist-Nationalist war, then Japan. Her calibration: the US Civil War was shorter, less brutal, left Washington's institutions intact and let Lee's army go home — <em>and the losing side still hasn't gotten over it.</em></p>
+<p><strong>Why no successful coup</strong> <span class="ts">1:26:43</span> — the commissar system is superb at seizing and holding power and terrible at producing prosperity. Liu Shaoqi and Peng Dehuai did pull the plug on Mao; the Cultural Revolution was his counterattack, launched after Khrushchev's 1956 denunciation of Stalin showed him what happens posthumously. He left Beijing, rallied teenagers who began by killing their teachers, then used Lin Biao to restore order once his rivals were gone.</p>
+<p><strong>On Edgar Snow</strong> <span class="ts">1:41:11</span> — Mao wanted his own John Reed and picked a young, naive, genuinely talented writer. Snow never asked why an A-list leader was giving him hours. Mao corrected the interview drafts. Across successive editions of <em>Red Star Over China</em>, purged figures vanish from the photographs, the text and the index — and Snow went along, because the book was the only thing that made him important. He denied the famine to the end.</p>
+<p><strong>The Marshall Plan counterfactual</strong> <span class="ts">1:14:28</span>–<span class="ts">1:22:39</span> — the disagreement Dwarkesh presses hardest and loses. The US gave Europe $13bn and China roughly one-hundredth of that while embargoing Chiang in 1946. Paine's answer: distinguish nation-<em>re</em>building from nation-building. Germany and Japan already had institutions, literacy, courts and police, so cash rebuilt them fast. China had none of that, so a Marshall Plan would not have worked — the same error later repeated in Iraq and Afghanistan. The China hands, missionaries' children fluent in Chinese, had correctly assessed it as hopeless, and were destroyed in the McCarthy purges for being right.</p>
+<p>Her broader lesson, stated as a rule: <strong>when two parties are primary adversaries, you cannot make them cooperate.</strong> Aid to one enrages the other. That's why the Nationalist-Communist coalition government was always a non-starter, and it generalizes to India/Pakistan and to Iraq.</p>
+<p><strong>Taiwan as rebuke</strong> <span class="ts">1:34:58</span> — after losing, the KMT ran an after-action report, concluded corruption and the absence of land reform had killed them, and did on Taiwan what they couldn't do on the mainland, since there the landlords <em>were</em> the officer corps. Redistribution was bloody; Taiwanese landowners were paid in bonds they assumed were worthless and which became valuable. By ~1990 Taiwan held 1/50th the population and 1/250th the land of the mainland at ~40% of its GNP — and it retired the notion that Han culture and democracy are incompatible.</p>
+<p><strong>On Xi</strong> <span class="ts">1:30:49</span> — reveres Mao; educated during the Cultural Revolution, when institutions weren't delivering education. "Don't ever kid yourself that the Communist Party of China doesn't believe in communism now."</p>
+<section class="contested"><h3>What the comments contest</h3>
+<p>Nothing factual — 60 top comments, overwhelmingly praise, no corrections. Two threads are still worth knowing about:</p>
+<ul><li><strong>Interviewer pushback (863 and 111 likes).</strong> Several regular viewers note Paine repeatedly declines the premise of Dwarkesh's questions rather than the questions themselves, and that this reads as evasion only if you miss that the premise was the problem. The <span class="ts">1:08:19</span> exchange ("Uh-oh. New exit strategy.") is the one people cite. Relevant if you're judging whether her non-answers are dodges — the comment consensus, which matches the transcript, is that they aren't.</li><li><strong>Lived corroboration (503 likes).</strong> A commenter whose in-laws lived through the Cultural Revolution: Chinese textbooks credit Mao with near-single-handedly defeating Japan, with the Nationalists and Americans barely present — independently confirming Paine's <span class="ts">47:46</span> claim about who actually fought that war, and how thoroughly the credit was reassigned.</li></ul>
+</section>
+</article>
+<article id="china-found-something-better-than-oil">
+<div class="kicker"><span>Maxinomics</span><span>27m26s</span><span>4.76M views</span></div>
+<h2>China Found Something Better Than Oil</h2>
+<div class="verdict"><p><strong>Watch it</strong> — then read the comments, because two expert corrections materially weaken the central framing.</p><p class="cost"><b>~25 of 27 min</b> worth watching &middot; <b>6% fluff</b> &middot; 5,746 → 785 words (7.3:1)</p></div>
+<a class="src" href="https://youtu.be/BXLGV0Sj0n8">watch on YouTube &rarr;</a>
+<h4>Why magnets, not "rare earths," are the actual chokepoint</h4>
+<p>Permanent magnets convert electricity to motion with very little waste, and nothing else matches them. An iPhone has a dozen; an EV motor holds 12 lb; every US missile has at least 12 at the fin bases for steering. <strong>$0.96 of every dollar in the rare-earth industry ends up in magnets</strong> — so "rare earths" is the wrong unit of analysis. Magnet rare earths are, and China controls 94%. <span class="ts">00:00</span></p>
+<p>Samarium-cobalt came first (1970, two US Air Force engineers), but cobalt prices rose 400% as the Congo destabilized. In 1983, GM and the future Hitachi Metals unveiled <strong>neodymium-iron-boron</strong> — smaller, stronger, three times cheaper. That magnet is what shrank the electric world. China was making exactly zero magnets at the time.  <span class="ts">02:00</span>–<span class="ts">03:00</span></p>
+<h4>Rare earths aren't rare. Separation is the moat.</h4>
+<p>Deposits are everywhere. The difficulty is chemical: <strong>adjacent lanthanides are near-identical in size, bonding behavior and reactivity</strong>, so no single test separates them. You run hundreds of passes, each nudging the pair fractionally apart. Rare earths are the hardest commercially mined family to separate — most steps, most chemicals, most time.  <span class="ts">08:01</span>–<span class="ts">10:01</span></p>
+<p>That difficulty is also why the US exited. At Mountain Pass — the richest rare-earth mine ever found — wastewater was piped 14 miles into the desert. Over 12 years the pipeline <strong>ruptured 60+ times, spilling nearly a million gallons</strong> of thorium-bearing water. Lawsuits and fines effectively ended US rare-earth processing. China's equivalent mine in Inner Mongolia has the same waste problem, but rare earths are a state priority, so a suit against it wouldn't be <em>lost</em> — it wouldn't be <em>heard</em>.  <span class="ts">10:01</span>–<span class="ts">12:03</span></p>
+<h4>The four-step playbook</h4>
+<p>1. <strong>Build at home</strong> on state-bank loans that don't need to return capital, and party-granted land. Sell to everyone; volume is the point. 2. <strong>Shut the door</strong> — export caps and taxes. This hit in late 2010: prices outside China roughly quadrupled while staying cheap inside. Two prices for the same material. 3. <strong>Wait.</strong> Foreign manufacturers, now paying 4x for inputs, lose orders to Chinese competitors. To get finished magnets they must hand Chinese plants the drawings, specs and recipes. <em>The know-how wasn't stolen; foreign firms paid to transfer it.</em> An iPhone holds ~$9 of raw material and sells for ~120x that — the point of closing the door is to climb the value chain. 4. <strong>Open the door again.</strong> Trade cases take 3–5 years and China usually loses, but by then competitors have bled out. Supply floods back, killing the new Western mines the high prices had tempted into existence. Survivors merge into two state champions.  <span class="ts">14:04</span>–<span class="ts">17:05</span></p>
+<h4>The real chokepoint is samarium</h4>
+<p>Missile fin actuators hold position by <em>continuously</em> running current through a coil, which generates heat — and heat destroys magnetic strength. Samarium cuts that temperature problem by ~95%. China's monopoly on samarium is not 94% but <strong>99%</strong>; it takes a third more refining steps and costs 12x more than neodymium. China banned samarium exports outright on <strong>April 4, 2025</strong>. <span class="ts">18:06</span>–<span class="ts">20:06</span></p>
+<p>The framing: monopolies are tolerated while they only extract rent (De Beers, Luxottica, ASML, Bloomberg). The line is <em>coercion</em> — using the monopoly to force behavior. The Pentagon's response is a price floor of <strong>$110/kg plus a guaranteed volume ("take-or-pay") for ten years</strong>, with the government taking 30% of any upside above $110 — explicitly designed so China can't flood the market and wash out US producers again.  <span class="ts">22:06</span>–<span class="ts">26:10</span></p>
+<section class="contested"><h3>What the comments contest</h3>
+<ul><li><strong>The "organic" claim is the weak point (288 likes).</strong> The video's central distinction is that US chip dominance was lost organically while China's rare-earth position was engineered. A commenter lists the counter-evidence: antidumping duties, Voluntary Export Restraints, the 1986 Semiconductor Agreement, Section 301 tariffs, the blocked Fujitsu–Fairchild acquisition, and Sematech — decades of US industrial policy against Japan's electronics sector. If that's "organic," the word is doing no work. Many other commenters make the sequencing version of this point: US export controls ran 2016–2020, so China's 2025 move reads as retaliation rather than a sprung trap.</li><li><strong>The thorium scare is overstated (545 likes).</strong> Thorium's radioactivity is close to background; the pollution problem at Mountain Pass was chemical, not radiological. The video leans on "radioactive thorium" for its causal turn.</li><li><strong>Heat damage is worse than described (93 likes).</strong> From someone who builds magnetic NDT equipment for 650°F pipe: beyond the Curie point, <em>each</em> thermal cycle below it walks the magnet through a hysteresis loop and permanently sheds strength. Degradation is cumulative, not just a temperature threshold.</li><li><strong>Attribution (51 likes).</strong> The first rare-earth magnets trace to Strnat and Ray at Wright-Patterson AFB and the University of Dayton in the 1960s, earlier than the video implies.</li></ul>
+</section>
+</article>
+<article id="america-s-40-trillion-debt-is-actually-f">
+<div class="kicker"><span>The Prof G Pod</span><span>22m21s</span><span>147k views</span></div>
+<h2>America’s $40 Trillion Debt Is Actually Fixable</h2>
+<div class="verdict"><p><strong>Skim.</strong> Three unrelated listener questions. The debt segment is the substantive one and the comments dispute it hard; the key-man segment is the most original.</p><p class="cost"><b>~6 of 22 min</b> worth watching &middot; <b>13% fluff</b> &middot; 4,310 → 760 words (5.7:1)</p></div>
+<a class="src" href="https://youtu.be/504UjcCLleE">watch on YouTube &rarr;</a>
+<h4>The $40T debt  <span class="ts">00:38</span>–<span class="ts">06:03</span></h4>
+<p>Debt passed $40T on 18 Aug 2026 — 10x its 1993 level while the economy grew under 5x, so it has risen sharply even growth-adjusted. That's ~120–130% of GDP, Japan/Italy territory, growing $2T a year. <strong>Interest now consumes 18.5% of all federal receipts</strong> — a record, edging out 1991's 18.4%, and unlike 1991 the number is rising rather than falling. Galloway dates the turn to the Bush-Cheney "deficits don't matter" position.</p>
+<p>His fixes:</p>
+<ul><li><strong>Collect what's already owed.</strong> ~$700bn/yr in legally owed tax goes uncollected. Audit rates on millionaires fell &gt;70% between 2010 and 2019. Yale's Budget Lab found cutting $20bn from the IRS <em>adds</em> ~$263bn to the deficit — a 10:1 loss.</li><li><strong>Tax capital gains as ordinary income</strong> (~22.8% vs 37%): "our tax system says sweat is less noble than money." He'd accept a lower unified rate as long as it's equalized.</li><li><strong>Attack healthcare spending.</strong> US per-capita health spending of ~$13,500 against a G7 norm near $6,500, times 350M people, is roughly the size of the annual deficit.</li></ul>
+<p>The bar is lower than it sounds: you don't need a surplus, only for deficit growth to run below economic growth.</p>
+<h4>Key-man risk and enterprise value  <span class="ts">07:39</span>–<span class="ts">14:07</span></h4>
+<p>The most useful segment. Building something that runs without you and building something worth buying are the same problem.</p>
+<p>Acquirers pay for <strong>diversity of three things</strong>: revenue (Prof G has 50 advertisers; at L2, P&amp;G, Nike and LVMH were once 40% of revenue — acquirers hate that), geography, and human capital. In L2's diligence the winning statistic was that he'd never met two-thirds of clients in person.</p>
+<p>If key-man risk remains, buyers don't walk — they <strong>bolt your knees to the floor</strong> with tenure-based earnouts. Gartner bought L2 for ~$158M with 40–50% up front and the rest over three years. He left after one year anyway.</p>
+<p>Structural notes: Goldman runs co-heads specifically so no individual can hold a desk hostage; Fox demonstrated the platform outranks the talent when it cut Tucker Carlson. And on retention — "if you want people to act like owners, make them owners." When small-business owners say they can't scale, he asks to see the cap table, and finds founders holding 100%.</p>
+<p>He estimates multiple podcast verticals make the company worth <strong>2–3x</strong> what the same revenue from a single show would fetch.</p>
+<h4>Living with your parents  <span class="ts">16:08</span>–<span class="ts">22:21</span></h4>
+<p>Nearly half of US adults under 30 live with a parent (49%, up from 37% in 2019); 7 in 10 of those aged 25–34 are employed. The evidence is genuinely mixed: a Fed study found they don't offset housing savings elsewhere — they spend <em>less</em>. But the Urban Institute found those who lived at home between 25 and 34 were significantly less likely to be homeowners or heads of household a decade later, with <strong>no visible trace of the savings ever appearing</strong>. IFS-cited research: one year at home in your late 20s improved labor-market outcomes; four to six years reduced the likelihood of full-time employment.</p>
+<p>His test: <strong>if it's a bed, stay and save. If it's a home, move out.</strong> On the specific question asked — an hour commute — he'd take a cheap apartment near work and reinvest the 10 weekly hours.</p>
+<section class="contested"><h3>What the comments contest</h3>
+<p>Substantive, and aimed squarely at the framing:</p>
+<ul><li><strong>The household analogy is the weak link (14 likes).</strong> A household can't issue currency, can't sell treasuries, and doesn't underwrite global payments. The opening device — and the video's hook — quietly assumes the thing in dispute.</li><li><strong>The post-WWII precedent doesn't transfer (5 likes).</strong> That deleveraging ran on financial repression (rates deliberately held below inflation, banks pushed into the debt) plus a growth surge available only because Europe and Japan weren't yet competitors. Debt still climbed; GDP simply climbed faster.</li><li><strong>The arithmetic cuts against "just balance it" (2 likes, repeated).</strong> With a deficit near 7% of GDP and growth near 2%, closing the gap outright implies roughly −5% growth. Several commenters land on the same conclusion: the deficit must be outgrown, not eliminated.</li><li><strong>"Back to the era of Reagan" is a bad citation (multiple).</strong> Reagan is widely identified in the thread as the origin of the trajectory Galloway is complaining about.</li><li><strong>Marginal vs. effective rates (1 like, but correct).</strong> The 37% figure is a marginal rate applying above ~$625k single, and the capital-gains preference only attaches to long-term gains. The clean 37%-vs-22.8% contrast overstates the gap.</li><li><strong>The Clinton surplus is disputed</strong> — attributed to moving Social Security off-budget and refinancing to shorter maturities.</li></ul>
+</section>
+</article>
+<article id="once-you-get-money-upgrade-these-8-thing">
+<div class="kicker"><span>Sandeep Swadia</span><span>19m10s</span><span>941k views</span></div>
+<h2>Once You Get Money, Upgrade These 8 Things Immediately</h2>
+<div class="verdict"><p><strong>Skip the video.</strong> Everything below is the content. The title promises 8 things; the video delivers 4 categories, and the framework is the only structure here.</p><p class="cost"><b>0 of 19 min</b> worth watching &middot; <b>34% fluff</b> &middot; 2,556 → 371 words (6.9:1)</p></div>
+<a class="src" href="https://youtu.be/45oG6w7bvtM">watch on YouTube &rarr;</a>
+<h4>The framework</h4>
+<p>Spend on the thing that raises your <em>capacity</em>, not your lifestyle. Four categories, in order:</p>
+<p><strong>Stamina</strong> — buy what improves the quality of your decisions. Sleep first. Two sub-rules worth more than the category itself: <em>buy a habit you won't build yourself</em> (a gym you'll actually attend, a trainer who shows up whether or not you want to), and <em>spend on your specific bottleneck</em>, which is personal — his was silence, so noise-cancelling headphones.  <span class="ts">03:03</span>–<span class="ts">06:05</span></p>
+<p><strong>Skills</strong> — favor foundational skills that pay recurring dividends over one-off ones: finance, communication, negotiation, time management. The operative question, asked monthly: <em>what skill gap is currently costing me the most?</em>  <span class="ts">06:05</span>–<span class="ts">10:06</span></p>
+<p><strong>Security</strong> — hedge three named risks: <strong>concentration</strong> (diversify once you have real savings), <strong>constraints</strong> (a "BATNA fund" — 6–9 months of runway so you can walk away from a job or a negotiation), and <strong>complexity</strong> (accountant, planner, estate attorney once finances warrant it). <span class="ts">10:06</span>–<span class="ts">14:12</span></p>
+<p><strong>Soul</strong> — the category with the worst financial return and, he argues, the highest value: things that genuinely light you up, the people you love, and generosity.  <span class="ts">14:12</span>–<span class="ts">18:15</span></p>
+<h4>The four facts worth keeping</h4>
+<ul><li><strong>The Kahneman $75k ceiling was misread.</strong> His 2023 work with Killingsworth found happiness keeps rising with income, but logarithmically — $40k→$80k buys the same increment as $80k→$160k, then $160k→$320k.  <span class="ts">00:00</span>–<span class="ts">02:02</span></li><li><strong>Sleep deprivation degrades reaction time and coordination to drunk-equivalent levels</strong>, and worsens the longer you're awake.  <span class="ts">03:03</span></li><li><strong>Archegos (2021)</strong> — a leveraged portfolio that collapsed in days on margin calls, taking $5.5bn of Credit Suisse with it. Offered as: wealth is built by concentrated bets and preserved by hedges.  <span class="ts">10:06</span></li><li><strong>The Harvard Grant Study</strong> (running since 1938): relationship satisfaction at 50 was the strongest predictor of health at 80.  <span class="ts">16:15</span></li></ul>
+<section class="contested"><h3>What the comments contest</h3>
+<p>Nothing. Not one substantive correction or dispute in the top 60.</p>
+<p>Worth flagging instead: the comment section is <strong>actively polluted</strong>. Two different astroturfed book plugs recur across separate accounts ("Behind the Dark Side of Power," "The Pattern They Missed"), and there is a classic advisor-scam thread — an unprompted testimonial naming a "financial advisor," followed by reply-chain accounts asking how to contact her. Treat every named recommendation in this comment section as an advertisement.</p>
+</section>
+</article>
+
+  <p class="foot">
+    Generated by <a href="https://github.com/ahdimel/smart_yt_consumer">smart_yt_consumer</a>.<br>
+    Manual captions preferred over auto; top comments by likes, creator and low-signal excluded.<br>
+    Fluff measured from timestamped ad, teaser, restatement and B-roll spans.
+  </p>
+</div>
+<style>
+  .contested{border-left:2px solid var(--contest); padding-left:1rem; margin-top:1.8rem}
+  .contested h3{color:var(--contest); border-bottom-color:var(--contest); margin-top:0}
+  .contested ul{list-style:none; padding:0; display:grid; gap:1rem}
+  .contested li{margin:0}
+</style>
