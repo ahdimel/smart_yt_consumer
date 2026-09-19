@@ -17,11 +17,14 @@ git pull --rebase --autostash --quiet 2>/dev/null || log "warn: git pull failed,
 # change. Anything broader is a real change and is left alone for review.
 adopt_queue_branches(){
   git fetch origin --prune --quiet 2>/dev/null || return 0
-  local ref br changed
+  local ref br base changed
   while read -r ref; do
     [[ -z "$ref" ]] && continue
     br="${ref#origin/}"
-    changed="$(git diff --name-only main.."$ref" 2>/dev/null)"
+    # compare against the merge base, so this sees only what the branch ADDED --
+    # not commits main has moved on by since the branch was cut
+    base="$(git merge-base main "$ref" 2>/dev/null)" || continue
+    changed="$(git diff --name-only "$base".."$ref" 2>/dev/null)"
     [[ -z "$changed" ]] && continue
     if grep -qv '^queue/' <<<"$changed"; then
       log "branch $br touches more than queue/ -- leaving for review"
