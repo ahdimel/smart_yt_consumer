@@ -14,11 +14,20 @@ STEM="$CACHE/$ID"
 
 if [[ ! -f "$STEM.info.json" ]]; then
   echo "fetching $ID ..." >&2
-  yt-dlp --skip-download --no-warnings \
-    --write-auto-subs --write-subs --sub-langs "en.*" --sub-format vtt \
+  # "en.*" also matches auto-TRANSLATED tracks (en-zh, en-es, ...). Each is a
+  # separate request, and enough of them in a batch trips YouTube's rate limiter.
+  # Ask only for the tracks the flattener actually reads.
+  # --ignore-errors matters too: without it one failed subtitle track aborts the
+  # whole fetch and discards the info.json and comments already downloaded.
+  yt-dlp --skip-download --no-warnings --ignore-errors \
+    --sleep-requests 0.7 --retries 5 --retry-sleep 3 \
+    --write-auto-subs --write-subs --sub-langs "en,en-US,en-GB,en-orig" --sub-format vtt \
     --write-info-json --write-comments \
-    --extractor-args "youtube:comment_sort=top;max_comments=150,120,30,2" \
+    --extractor-args "youtube:comment_sort=top;max_comments=120,100,20,1" \
     -o "$CACHE/%(id)s" "$URL" >&2
+
+  # --ignore-errors can still leave a fetch without the metadata we need
+  [[ -f "$STEM.info.json" ]] || { echo "no info.json for $ID" >&2; exit 1; }
 else
   echo "cached $ID" >&2
 fi

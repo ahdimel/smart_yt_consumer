@@ -110,3 +110,5 @@ Then the body, in markdown. Rules the renderer depends on:
 - Put timestamps in backticks — `14:32` — so they render as jump chips. Use them liberally;
   they are how the reader jumps to anything they want in full.
 - Wrap lines at about 98 columns.
+- Do not wrap the output in a code fence. The first character of your reply is the
+  opening `---` of the front matter.

@@ -69,9 +69,12 @@ for f in "${FILES[@]}"; do
   # Tools are disallowed so this is a pure text transform. With them enabled the
   # agent reads CLAUDE.md, writes the files itself and prints nothing to stdout --
   # the work lands, but the redirect below captures an empty file and reports failure.
-  if claude -p --disallowed-tools "Bash Edit Write Read Glob Grep NotebookEdit Task Artifact WebFetch WebSearch" \
-       "$(cat prompts/summarize.md)" < "$BUNDLE" > "out/$WEEK/$ID.md.tmp" 2>/dev/null \
-     && [[ -s "out/$WEEK/$ID.md.tmp" ]] && head -1 "out/$WEEK/$ID.md.tmp" | grep -q '^---$'; then
+  # The prompt MUST come before --disallowed-tools: the flag is variadic and will
+  # otherwise swallow the prompt, turning every word of it into a bogus deny rule.
+  if claude -p "$(cat prompts/summarize.md)" \
+       --disallowed-tools "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,Task,Artifact,WebFetch,WebSearch" \
+       < "$BUNDLE" > "out/$WEEK/$ID.md.raw" 2>/dev/null && [[ -s "out/$WEEK/$ID.md.raw" ]] \
+     && python3 lib/clean.py "out/$WEEK/$ID.md.raw" "out/$WEEK/$ID.md.tmp"; then
     # stamp the real ingest time; the model copies the example value otherwise
     python3 - "out/$WEEK/$ID.md.tmp" "out/$WEEK/$ID.md" <<'PY'
 import re, sys, datetime
@@ -81,9 +84,11 @@ s = open(src, encoding='utf-8').read()
 s = re.sub(r'^added:.*$', 'added: ' + t, s, count=1, flags=re.M)
 open(dst, 'w', encoding='utf-8').write(s)
 PY
-    rm -f "out/$WEEK/$ID.md.tmp" "$f"; ADDED=$((ADDED+1)); log "  summarized -> out/$WEEK/$ID.md"
+    rm -f "out/$WEEK/$ID.md.tmp" "out/$WEEK/$ID.md.raw" "$f"
+    ADDED=$((ADDED+1)); log "  summarized -> out/$WEEK/$ID.md"
   else
-    rm -f "out/$WEEK/$ID.md.tmp"; log "  summarize failed, leaving queued"
+    rm -f "out/$WEEK/$ID.md.tmp" "out/$WEEK/$ID.md.raw"
+    log "  summarize failed, leaving queued"
   fi
 done
 

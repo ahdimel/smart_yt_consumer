@@ -116,7 +116,12 @@ def render(week_dir, tag):
     for f in files:
         meta, body = parse(f)
         vid = os.path.splitext(os.path.basename(f))[0]
+        if not meta.get('title') or not body:
+            print('skipping malformed summary: ' + os.path.basename(f), file=sys.stderr)
+            continue
         entries.append((vid, meta, body, slug(meta, vid)))
+    if not entries:
+        raise SystemExit('no usable summaries in ' + week_dir)
     # newest first by added date when present
     entries.sort(key=lambda e: e[1].get('added', ''), reverse=True)
 
