@@ -4,10 +4,10 @@ title: The Global Monetary Reset Has Begun (Why Gold & Silver are Next)
 channel: Felix & Friends (Goat Academy)
 duration: 24m45s
 views: 192488
-verdict: One real argument about supply-side inflation, stretched into a webinar funnel
-watchable: 10m
+verdict: **Skim.** One real argument — that rate hikes can't touch a supply-side oil shock — stretched into a webinar funnel.
+watchable: ~10 of 25 min
 fluff: 55%
-compression: 5.5x
+compression: 6400 -> 1170 words (5.5:1)
 added: 2026-09-20T13:36:58
 ---
 
@@ -88,3 +88,5 @@ silver *miners* (16 likes), what a European holder should do if the whole analys
 (5 likes), and whether ETC wrappers like SGLN/SSLN carry the counterparty risk the thesis implies.
 All three point at the gap between the argument and an actual allocation — which is, of course,
 exactly what the two-hour webinar is selling.
+
+One assumption worth flagging: the original `compression: 5.5x` carried no word counts, so I kept the 5.5:1 ratio as given and back-filled the two counts from it (summary body ≈ 1170 words → transcript ≈ 6400). If `lib/bundle.py` still has the real transcript count for this video, substitute it.

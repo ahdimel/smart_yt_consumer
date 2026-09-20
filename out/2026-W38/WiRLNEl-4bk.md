@@ -4,10 +4,10 @@ title: Why The Nepal Flood Was WAY Scarier Than You Think
 channel: RealLifeLore
 duration: 30m10s
 views: 1,157,585
-verdict: Worth reading in full; the reporting is tight and the timeline reconstruction is the point
-watchable: Partly — the CCTV footage (`00:00`) and the before/after satellite pairs (`11:09`) do not survive text
-fluff: ~3m sponsor read from `27:23` to the end; the body itself is dense
-compression: 4,683 transcript words -> ~1,050
+verdict: **Skim.** The reporting is tight and the timeline reconstruction survives in text; watch only the CCTV footage and the before/after satellite pairs.
+watchable: ~5 of 30 min
+fluff: 10%
+compression: 4,683 -> 1,050 words (4.5:1)
 added: 2026-09-20T13:39:06
 ---
 

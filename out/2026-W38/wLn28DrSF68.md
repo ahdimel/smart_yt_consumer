@@ -4,10 +4,10 @@ title: "Building a Life"
 channel: Harvard Business School
 duration: 57m14s
 views: 2,899,057
-verdict: "Worth it — a real framework under the after-dinner delivery"
-watchable: "Partly"
-fluff: "Low-moderate"
-compression: "10,278 words → ~1,250"
+verdict: **Watch it.** The four-domains taxonomy and the "define enough" argument are load-bearing, not after-dinner filler. The delivery is loose but the framework survives the summary.
+watchable: ~45 of 57 min
+fluff: 21%
+compression: 10,278 -> 1,250 words (8.2:1)
 added: 2026-09-20T13:43:14
 ---
 

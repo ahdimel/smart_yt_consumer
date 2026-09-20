@@ -4,11 +4,10 @@ title: "Ray Dalio: I Predicted The 2008 CRASH, I Know What Comes Next!"
 channel: "The Diary Of A CEO"
 duration: "1h30m"
 views: 6441515
-verdict: "The framework is his books. The fresh material is about twenty minutes: stock supply,
-  the unemployment attribution, and Iran-as-Suez."
-watchable: "35 of 90 min"
-fluff: "20%"
-compression: "12x"
+verdict: **Skim.** The framework is his books. The fresh material is about twenty minutes: stock supply, the unemployment attribution, and Iran-as-Suez.
+watchable: 35 of 90 min
+fluff: 20%
+compression: 13400 -> 1950 words (6.9:1)
 added: 2026-09-20T13:35:22
 ---
 
@@ -160,3 +159,5 @@ And one on comprehensibility, at 61 likes, worth taking seriously given he sells
 educator: "I can listen to Sean Carroll talk about quantum physics for five minutes and feel
 like I'm on the way to understanding, but half an hour in with Ray Dalio and I have no clue what
 he's on about."
+
+One flag: `compression` had only a ratio (`12x`), so the two word counts are reconstructed — summary length counted from the body (~1,950 words), transcript length inferred from 90 minutes at conversational pace (~13,400). That also drops the stated ratio from 12:1 to 6.9:1, since 12:1 was not consistent with a body this long. If the original transcript word count is still in the bundle, substitute it.

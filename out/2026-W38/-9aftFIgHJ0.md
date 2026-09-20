@@ -4,10 +4,10 @@ title: The great fuel crisis is here, oil executives warn
 channel: CNN
 duration: 10m09s
 views: 1,195,126
-verdict: skim
-watchable: 5:11-9:15
-fluff: high
-compression: 1830 -> 690
+verdict: **Skim.** The Robin Mills interview in the back half carries the whole segment — crude is no longer the binding constraint, refined diesel supply is. Everything before it restates the same point four times.
+watchable: ~4 of 10 min
+fluff: 60%
+compression: 1830 -> 690 words (2.7:1)
 added: 2026-09-20T13:31:11
 ---
 

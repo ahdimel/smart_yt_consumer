@@ -83,22 +83,34 @@ genuinely good, say that too — do not manufacture criticism for balance.
 ## Output format
 
 Emit **only** the finished summary file — no preamble, no "here is your summary". Pass 1 is
-thinking; it does not appear in the output. Start at the first character of the front matter:
+thinking; it does not appear in the output. Start at the first character of the front matter.
+
+Every field is a **single line**. No quotes, no YAML block scalars (`>-`, `|`), no wrapping onto
+an indented continuation line. These are parsed mechanically and compared across videos, so the
+formats below are exact, not suggestions.
 
 ```
 ---
-nav: <2-3 words for the week's nav bar, e.g. "Rare earths">
-title: <the video's title>
+nav: <2-3 words for the week's nav bar, e.g. Rare earths>
+title: <the video's title, verbatim, unquoted>
 channel: <channel name>
 duration: <e.g. 27m26s or 1h49m>
 views: <e.g. 4.76M views>
-verdict: <one or two sentences, starting with **Watch it.** / **Skim.** / **Skip the video.**>
-watchable: <e.g. ~25 of 27 min>
-fluff: <e.g. 6%>
-compression: <e.g. 5,746 - 785 words (7.3:1)>
+verdict: **Watch it.** <or **Skim.** or **Skip the video.** or **Watch the whole thing.** —
+  one of those four, in bold, FIRST, then one or two sentences on one line>
+watchable: <N of M min — bare numbers only, e.g. "~25 of 27 min" or "0 of 19 min". Never a
+  timestamp range, never prose. If nothing is worth watching, write "0 of M min">
+fluff: <a bare percentage, e.g. 13%. Never a word like "high" or "low-moderate", never a
+  description, never quoted. You computed this in pass 1 by summing the cut spans>
+compression: <transcript words → summary words (ratio:1), e.g. 5,746 → 785 words (7.3:1).
+  Always all three parts>
 added: <ISO timestamp>
 ---
 ```
+
+Those three metric fields are the point of the whole exercise — they are how the reader decides
+what to watch and how videos compare to each other. A word where a number belongs makes the
+entry useless for comparison. If you are unsure, estimate and give the number anyway.
 
 Then the body, in markdown. Rules the renderer depends on:
 

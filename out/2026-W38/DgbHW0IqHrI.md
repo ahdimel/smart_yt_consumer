@@ -4,10 +4,10 @@ title: America Is Walking Into Something It Can't Stop
 channel: Casual Finance
 duration: 16m36s
 views: 1,220,916
-verdict: Better than its title; two segments earn the watch
-watchable: 11:09-12:11, 13:12-15:12
+verdict: **Skim.** Better than its title, but only two segments earn the watch — the capex rebuttal to Bessent's "be patient" and the r-versus-g section that explains why this isn't a crisis yet.
+watchable: ~3 of 17 min
 fluff: 13%
-compression: 3.2x
+compression: 4,200 -> 1,315 words (3.2:1)
 added: 2026-09-20T13:27:49
 ---
 

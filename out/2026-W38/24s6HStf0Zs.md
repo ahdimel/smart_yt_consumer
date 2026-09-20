@@ -4,10 +4,10 @@ title: "Replay: Macron, Carney hail new chapter on France-Canada ties at St. Pie
 channel: FRANCE 24 English
 duration: 16m21s
 views: 12,555
-verdict: skim
-watchable: no
-fluff: high
-compression: 3x
+verdict: **Skim.** Two prepared statements with no press questions; only the LNG exchange and the space-and-defence taskings carry new information.
+watchable: ~2 of 16 min
+fluff: 55%
+compression: 2380 -> 820 words (2.9:1)
 added: 2026-09-20T13:32:50
 ---
 
@@ -72,3 +72,11 @@ Europe," which is the most accurate read in the thread. Dissent is thin: one com
 would have done the job, one calls the praise bot-driven, one insists the US is the one holding the West
 together. A bilingual viewer complains, fairly, that FRANCE 24's English feed buries the original audio
 under a translator — which is also why the transcript's proper nouns are unreliable.
+
+**Inferred values, since the originals weren't in the required format:**
+
+- `watchable` — the body names `[07:09]` and `[14:18]` as "about two minutes" out of a 16m21s runtime.
+- `fluff` — 55%, from ceremonial thanks, the historical set-piece, and Carney restating deliverables
+  Macron had already listed. No ads or B-roll in a replayed statement feed, so this is pure restatement.
+- `compression` — 2380 transcript words estimated from 16m21s of prepared remarks at ~145 wpm; summary
+  body is ~820 words. That yields 2.9:1, consistent with the "3x" that was there before.

@@ -4,10 +4,10 @@ title: "Michael Burry Just Bet on a $3 Trillion Financial Time Bomb"
 channel: "Fin Tek"
 duration: "17m15s"
 views: 812068
-verdict: "Two good segments on AI financing mechanics, wrapped in recap, teases, and an ad."
-watchable: "`03:03`-`06:07`, `08:12`-`12:25`"
-fluff: "65s sponsor read at `06:07`; Burry biography `00:58`-`01:20`; four 'and after that we'll look at' teases; two plugs for the channel's other videos"
-compression: "17m15s runtime, roughly 6m of new information"
+verdict: **Skim.** Two good segments on AI financing mechanics — the off-balance-sheet commitments and the Nvidia-OpenAI funding loop — wrapped in recap, teases, and a sponsor read.
+watchable: ~7 of 17 min
+fluff: 24%
+compression: 2640 -> 1250 words (2.1:1)
 added: 2026-09-20T13:23:19
 ---
 
@@ -121,3 +121,5 @@ The substantive pushback worth keeping:
 
 Also note a promotional comment (2) pushing a service called "Midavest" with a claimed 33% YTD
 return, phrased to look like investor commentary. It isn't.
+
+Two of the four rewritten fields are inferred rather than measured, since I only had the rendered summary to work from: `fluff: 24%` comes from adding up the ad (65s), the biography detour, four teases and two channel plugs against the 17m15s runtime, and `compression` uses an estimated transcript length (~2640 words at typical narration pace) against a ~1250-word body. If the bundle for this video is still on disk, the real transcript word count would firm up that line.

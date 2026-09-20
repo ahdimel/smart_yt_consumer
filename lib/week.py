@@ -26,16 +26,43 @@ def week_label(tag):
     return f'{mon:%-d %b} – {sun:%-d %b %Y}'
 
 
+def parse_text(raw):
+    import io, tempfile, os
+    fd, tmp = tempfile.mkstemp(suffix='.md')
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        fh.write(raw)
+    try:
+        return parse(tmp)
+    finally:
+        os.unlink(tmp)
+
+
 def parse(path):
-    """Split front matter from body."""
+    """Split front matter from body.
+
+    Tolerant of what models actually emit: multi-line values continued on an
+    indented line, YAML block scalars (`>-`, `|`), and quoted values.
+    """
     raw = open(path, encoding='utf-8').read()
-    meta, body = {}, raw
-    if raw.startswith('---\n'):
-        head, _, body = raw[4:].partition('\n---\n')
-        for line in head.splitlines():
-            if ':' in line:
-                k, _, v = line.partition(':')
-                meta[k.strip()] = v.strip()
+    if not raw.startswith('---\n'):
+        return {}, raw.strip()
+    head, _, body = raw[4:].partition('\n---\n')
+
+    meta, key = {}, None
+    for line in head.splitlines():
+        if not line.strip():
+            continue
+        m = re.match(r'^([A-Za-z_][A-Za-z0-9_]*):\s?(.*)$', line)
+        if m and not line[:1].isspace():
+            key, val = m.group(1), m.group(2).strip()
+            # a block-scalar header carries no value; the text follows, indented
+            meta[key] = '' if val in ('>', '>-', '|', '|-', '') else val
+        elif key is not None:
+            meta[key] = (meta[key] + ' ' + line.strip()).strip()
+
+    for k, v in list(meta.items()):
+        if len(v) > 1 and v[0] == v[-1] and v[0] in '"\'':
+            meta[k] = v[1:-1].strip()
     return meta, body.strip()
 
 

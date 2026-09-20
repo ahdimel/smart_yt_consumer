@@ -4,12 +4,10 @@ title: "Can Volkswagen reinvent itself for the electric era? | FT Film"
 channel: Financial Times
 duration: 35m09s
 views: 859,569
-verdict: Competent survey of a story you probably know the shape of; the China section and
-  the Zwickau plant visit are the parts that earn their runtime.
-watchable: skim — `17:38`–`23:44` (China) and `28:11`–`30:18` (Zwickau) if you watch anything
-fluff: high — documentary pacing, long b-roll over factory ambience, the five-crises framing
-  restated at least three times, executives given room to say very little
-compression: 35m watch -> ~4m read
+verdict: **Skim.** Competent survey of a story you probably know the shape of; the China section and the Zwickau plant visit are the parts that earn their runtime.
+watchable: ~8 of 35 min
+fluff: 70%
+compression: 5,200 -> 1,290 words (4.0:1)
 added: 2026-09-20T13:40:43
 ---
 
