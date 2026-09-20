@@ -8,7 +8,7 @@ verdict: **Skim.** Two real claims, one of them good. Watch `12:10`–`13:30` (t
 watchable: ~6 of 21 min
 fluff: 18%
 compression: 3,878 → 1,059 words (3.7:1)
-added: 2026-09-20T00:00:00
+added: 2026-09-20T12:53:41
 ---
 
 The title promises financial freedom in twenty minutes. The video is a rent-versus-own argument
