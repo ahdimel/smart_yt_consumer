@@ -27,7 +27,9 @@ BUNDLE="$CACHE/$ID.bundle.txt"
 python3 "$ROOT/lib/bundle.py" "$STEM" > "$BUNDLE"
 echo "bundle: $BUNDLE ($(wc -w < "$BUNDLE" | tr -d ' ') words)" >&2
 
-if command -v claude >/dev/null 2>&1; then
+# drain does its own summarize (with tools disabled) and needs the BUNDLE path
+# back, not a summary path. Without this guard the two collide silently.
+if [[ -z "${VSUM_FETCH_ONLY:-}" ]] && command -v claude >/dev/null 2>&1; then
   SLUG="$(date +%Y-%m-%d)-$ID"
   claude -p "$(cat "$ROOT/prompts/summarize.md")" < "$BUNDLE" > "$OUT/$SLUG.md"
   echo "$OUT/$SLUG.md"

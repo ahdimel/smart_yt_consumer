@@ -61,8 +61,10 @@ for f in "${FILES[@]}"; do
     log "  already summarized this week, dropping from queue"; rm -f "$f"; continue
   fi
 
-  BUNDLE="$(VSUM_OUT="out/$WEEK" ./vsum "$URL" 2>/dev/null | tail -1)"
-  if [[ ! -s "$BUNDLE" ]]; then log "  fetch failed, leaving queued"; continue; fi
+  BUNDLE="$(VSUM_FETCH_ONLY=1 ./vsum "$URL" 2>/dev/null | tail -1)"
+  if [[ ! -s "$BUNDLE" ]] || [[ "$BUNDLE" != *.bundle.txt ]]; then
+    log "  fetch failed, leaving queued"; continue
+  fi
 
   # Tools are disallowed so this is a pure text transform. With them enabled the
   # agent reads CLAUDE.md, writes the files itself and prints nothing to stdout --
