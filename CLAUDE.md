@@ -23,11 +23,21 @@ touches only `queue/`, merges it, and deletes the branch. Don't open a PR for a 
 it just creates cleanup. Branches that change anything outside `queue/` are left alone for
 normal review.
 
+## Where this lives, and why it is not in Documents/vscode
+
+`~/code/smart_yt_consumer` — deliberately outside `~/Documents`, unlike the owner's other
+projects. macOS TCC blocks LaunchAgents from reading `~/Documents`, `~/Desktop` and
+`~/Downloads`: the scheduled drain failed with "Operation not permitted" on every run while the
+repo lived there, and the agent's own log was the only place that said so. Do not move it back.
+
 ## If you are on the user's Mac
 
 `./drain` — processes everything in `queue/`, writes summaries to `out/<ISO-week>/`,
-regenerates that week's page, commits, and republishes the weekly artifact.
-`./vsum <url>` — one-off, bypasses the queue.
+regenerates that week's page, commits, and republishes the weekly artifact. A LaunchAgent
+(`~/Library/LaunchAgents/com.ahdimel.smartytconsumer.plist`) runs it every 15 minutes while the
+Mac is awake; it logs to `~/Library/Logs/smart_yt_consumer/drain.log`. **Check that log before
+believing the timer works** — `launchctl list` showing the job is not evidence it ran.
+`./vsum <url>` — one-off, bypasses the queue. Set `VSUM_FETCH_ONLY=1` for the bundle only.
 
 ## Weekly artifact
 

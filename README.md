@@ -55,6 +55,11 @@ What does discriminate, by ~60x:
 
 See `examples/` for the full outputs.
 
+## Location
+
+`~/code/smart_yt_consumer`, not `~/Documents`. macOS TCC blocks background LaunchAgents from
+reading `~/Documents`, so the scheduled drain cannot run from there.
+
 ## Requirements
 
 `yt-dlp`, Python 3, and the `claude` CLI for the summarize step.
