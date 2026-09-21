@@ -7,6 +7,9 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/v24.15.0/
 
 log(){ printf '%s  %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
 
+# macOS ships no coreutils timeout; perl's alarm is always present.
+run_capped(){ local secs=$1; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@"; }
+
 command -v yt-dlp >/dev/null || { log "FATAL: yt-dlp not on PATH"; exit 1; }
 command -v claude >/dev/null || { log "FATAL: claude CLI not on PATH"; exit 1; }
 
@@ -71,7 +74,8 @@ for f in "${FILES[@]}"; do
   # the work lands, but the redirect below captures an empty file and reports failure.
   # The prompt MUST come before --disallowed-tools: the flag is variadic and will
   # otherwise swallow the prompt, turning every word of it into a bogus deny rule.
-  if claude -p "$(cat prompts/summarize.md)" \
+  log "  summarizing (cap ${SUMMARIZE_CAP:-600}s)"
+  if run_capped "${SUMMARIZE_CAP:-600}" claude -p "$(cat prompts/summarize.md)" \
        --disallowed-tools "Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,Task,Artifact,WebFetch,WebSearch" \
        < "$BUNDLE" > "out/$WEEK/$ID.md.raw" 2>/dev/null && [[ -s "out/$WEEK/$ID.md.raw" ]] \
      && python3 lib/clean.py "out/$WEEK/$ID.md.raw" "out/$WEEK/$ID.md.tmp"; then
@@ -101,7 +105,8 @@ git add -A out queue && git commit -q -m "digest: $ADDED video(s) for $WEEK" && 
 
 # Republish the week's artifact. A stored URL means update-in-place; no meta.json
 # means it is a new week, so publish fresh and record the URL that comes back.
-claude -p "Publish out/$WEEK/index.html as this week's artifact, following the publishing
+log "publishing artifact (cap 900s)"
+run_capped 900 claude -p "Publish out/$WEEK/index.html as this week's artifact, following the publishing
 rule in CLAUDE.md. Read out/$WEEK/meta.json first: if it has artifact_url, pass that as the
 url parameter to update in place. If there is no meta.json, publish fresh and then write
 {\"week\":\"$WEEK\",\"artifact_url\":\"<returned url>\",\"published\":\"$(date +%F)\"} to
