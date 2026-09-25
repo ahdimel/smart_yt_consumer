@@ -1,0 +1,5 @@
+https://claude.ai/artifact/4z9mbcvKTmLVEXMVxXThBC
+
+Updated in place as Version 2 — no duplicate created. `meta.json` already held this URL, so no change needed there.
+
+One flag, not acted on: the generated cost lines still carry word-compression ratios (`5,746 → 1,010 words (5.7:1)`), which CLAUDE.md says not to report as a fluff signal. It's in `lib/week.py`'s output for all five articles, not something this republish introduced — say the word and I'll strip it from the generator.
