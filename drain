@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
 
-log(){ printf '%s  %s\n' "$(date +%H:%M:%S)" "$*" >&2; }
+log(){ printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2; }
 
 # macOS ships no coreutils timeout; perl's alarm is always present.
 run_capped(){ local secs=$1; shift; perl -e 'alarm shift; exec @ARGV' "$secs" "$@"; }
@@ -103,12 +103,70 @@ python3 lib/week.py "$WEEK" >/dev/null && log "rebuilt out/$WEEK/index.html"
 git add -A out queue && git commit -q -m "digest: $ADDED video(s) for $WEEK" && git push -q \
   && log "pushed" || log "warn: git push failed"
 
-# Republish the week's artifact. A stored URL means update-in-place; no meta.json
-# means it is a new week, so publish fresh and record the URL that comes back.
-log "publishing artifact (cap 900s)"
-run_capped 900 claude -p "Publish out/$WEEK/index.html as this week's artifact, following the publishing
-rule in CLAUDE.md. Read out/$WEEK/meta.json first: if it has artifact_url, pass that as the
-url parameter to update in place. If there is no meta.json, publish fresh and then write
-{\"week\":\"$WEEK\",\"artifact_url\":\"<returned url>\",\"published\":\"$(date +%F)\"} to
-out/$WEEK/meta.json and commit it. Report only the final URL." >/dev/null 2>&1 \
-  && log "artifact published" || log "warn: artifact publish failed — run ./drain-publish by hand"
+# Republish the week's artifact.
+#
+# The new-week and update cases are separate prompts: a single conditional prompt
+# left the model to choose, and on the W39 rollover it chose not to publish at all.
+# drain also writes meta.json itself rather than asking the model to.
+PUBLOG="out/$WEEK/.publish.log"
+META="out/$WEEK/meta.json"
+URL=""
+[[ -f "$META" ]] && URL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$META" 2>/dev/null)"
+
+if [[ -n "$URL" ]]; then
+  log "updating artifact in place: $URL"
+  run_capped 900 claude -p "Use the Artifact tool. Read the artifact at $URL, then republish the
+local file out/$WEEK/index.html to that SAME url by passing url=$URL. The local file is
+regenerated from this week's summaries and is authoritative. Do not create a new artifact.
+Report only the final URL." > "$PUBLOG" 2>&1
+else
+  log "new week — publishing a fresh artifact for $WEEK"
+  run_capped 900 claude -p "Use the Artifact tool to publish the local file
+out/$WEEK/index.html as a NEW artifact. There is no existing artifact for this week, so do NOT
+pass a url parameter — a fresh publish is correct and expected here. Use icon 'calendar'.
+After publishing, reply with the artifact URL on a line by itself and nothing else." \
+    > "$PUBLOG" 2>&1
+  # drain records the URL; the model is not asked to write files
+  NEWURL="$(grep -oE 'https://claude\.ai/artifact/[A-Za-z0-9]+' "$PUBLOG" | tail -1)"
+  if [[ -n "$NEWURL" ]]; then
+    python3 - "$WEEK" "$NEWURL" "$META" <<'PY'
+import json, sys, datetime
+week, url, path = sys.argv[1], sys.argv[2], sys.argv[3]
+json.dump({'week': week, 'artifact_url': url,
+           'published': datetime.date.today().isoformat()},
+          open(path, 'w'), indent=2)
+open(path, 'a').write('\n')
+PY
+    log "  recorded $NEWURL in $META"
+  fi
+fi
+
+# Verify rather than trust: `claude -p` exits 0 whenever the session ends, whether
+# or not anything was published. Only meta.json proves it.
+FINAL=""
+[[ -f "$META" ]] && FINAL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$META" 2>/dev/null)"
+if [[ -n "$FINAL" ]]; then
+  log "artifact live: $FINAL"
+  git add -A out && git commit -q -m "publish: $WEEK artifact" 2>/dev/null && git push -q 2>/dev/null
+else
+  log "ARTIFACT PUBLISH FAILED for $WEEK — model output in $PUBLOG"
+  log "  last line: $(tail -1 "$PUBLOG" 2>/dev/null | cut -c1-160)"
+fi
+
+# Refresh the standing index so there is one stable link that always lists the
+# current week. Each week's artifact has its own URL; without this the user has
+# no way to find a new week's link.
+IDXMETA="out/index.meta.json"
+if [[ -f "$IDXMETA" ]]; then
+  IDXURL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$IDXMETA" 2>/dev/null)"
+  python3 lib/index_page.py >/dev/null 2>&1
+  if [[ -n "$IDXURL" ]]; then
+    log "refreshing index: $IDXURL"
+    run_capped 600 claude -p "Use the Artifact tool. Read the artifact at $IDXURL, then republish
+the local file out/index.html to that SAME url by passing url=$IDXURL. Do not create a new
+artifact. Reply with the URL only." > out/.index.log 2>&1
+    grep -q "$IDXURL" out/.index.log 2>/dev/null && log "  index refreshed" \
+      || log "  warn: index refresh may have failed — see out/.index.log"
+  fi
+  git add -A out && git commit -q -m "index: refresh" 2>/dev/null && git push -q 2>/dev/null
+fi
