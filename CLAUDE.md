@@ -39,10 +39,24 @@ Mac is awake; it logs to `~/Library/Logs/smart_yt_consumer/drain.log`. **Check t
 believing the timer works** — `launchctl list` showing the job is not evidence it ran.
 `./vsum <url>` — one-off, bypasses the queue. Set `VSUM_FETCH_ONLY=1` for the bundle only.
 
+## Checking health
+
+`./status` — timer loaded, when it last ran, queue depth, whether this week actually published,
+and any failures in the last two days. Run this before believing anything works.
+
 ## Weekly artifact
 
 One artifact per ISO week, republished in place as videos are added. The URL lives in
 `out/<week>/meta.json` under `artifact_url`.
+
+There is also a **standing index** artifact listing every week, so a new week's URL is
+discoverable — its URL is in `out/index.meta.json` and `drain` refreshes it after each run.
+Each week still gets its own artifact.
+
+**Never report a publish as successful without checking `meta.json`.** `claude -p` exits 0
+whenever the session ends, published or not. On the W39 rollover it published nothing twice
+while the log said "artifact published" both times, because drain trusted the exit code and
+sent all output to /dev/null.
 
 **Publishing rule that matters:** to update an existing week's artifact from a conversation
 that did not create it, you must pass that stored `artifact_url` as the `url` parameter, and

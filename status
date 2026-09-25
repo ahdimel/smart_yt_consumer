@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# status — is the digest engine healthy? One command, no digging.
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; cd "$ROOT"
+LOG="$HOME/Library/Logs/smart_yt_consumer/drain.log"
+WEEK="$(python3 -c 'import sys;sys.path.insert(0,"lib");import week;print(week.iso_week())')"
+
+ok(){ printf '  \033[32m✓\033[0m %s\n' "$*"; }
+bad(){ printf '  \033[31m✗\033[0m %s\n' "$*"; }
+
+echo "smart_yt_consumer — $(date '+%a %d %b %Y %H:%M')"
+echo
+LIST="$(launchctl list 2>/dev/null || true)"
+case "$LIST" in
+  *smartytconsumer*) ok "timer loaded (every 15 min, while awake + logged in)" ;;
+  *) bad "TIMER NOT LOADED — launchctl load ~/Library/LaunchAgents/com.ahdimel.smartytconsumer.plist" ;;
+esac
+
+LAST="$(tail -1 "$LOG" 2>/dev/null | cut -c1-19)"
+if [[ -n "$LAST" ]]; then
+  AGE=$(( ($(date +%s) - $(date -j -f "%Y-%m-%d %H:%M:%S" "$LAST" +%s 2>/dev/null || echo 0)) / 60 ))
+  (( AGE < 30 )) && ok "last ran ${AGE}m ago" || bad "last ran ${AGE}m ago — expected under 30 (asleep?)"
+else
+  bad "no log entries yet at $LOG"
+fi
+
+Q=$(ls queue/*.txt 2>/dev/null | wc -l | tr -d ' ')
+(( Q == 0 )) && ok "queue empty" || echo "  • $Q URL(s) queued, next tick will take them"
+
+META="out/$WEEK/meta.json"
+if [[ -f "$META" ]]; then
+  ok "$WEEK published: $(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['artifact_url'])" "$META")"
+else
+  [[ -d "out/$WEEK" ]] && bad "$WEEK has summaries but NO artifact — see $LOG" \
+                       || echo "  • no videos yet this week"
+fi
+[[ -f out/index.meta.json ]] && echo && echo "  index: $(python3 -c "import json;print(json.load(open('out/index.meta.json'))['artifact_url'])")"
+
+RECENT="$(grep -E "^($(date '+%Y-%m-%d')|$(date -v-1d '+%Y-%m-%d'))" "$LOG" 2>/dev/null \
+  | grep -E "FAILED|summarize failed|fetch failed" || true)"
+if [[ -n "$RECENT" ]]; then
+  echo; echo "  failures in the last 2 days:"; echo "$RECENT" | tail -3 | sed 's/^/    /'
+fi
+exit 0
