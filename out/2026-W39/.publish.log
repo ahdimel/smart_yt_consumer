@@ -1,20 +1,22 @@
-I could not do this, and I'm not going to report the URL as if I had.
+I did not publish, and I won't report a URL as if I had.
 
-**What blocked it:** this session has no Artifact tool. `ToolSearch` finds nothing matching it — not under that name or any other. The only publish-capable connector here is Claude Docs, and reading the target as a doc is denied:
+**What blocked it:** this session has no Artifact tool. `ToolSearch` returns nothing for `Artifact`, `ArtifactCheck`, `ArtifactData`, or `ArtifactComments`. The only publish-capable connector present is Claude Docs, and reading the target there is denied:
 
 ```
 {"verdict":"deny","reason":"access"}
 ```
 
-That's the expected answer for an HTML artifact, which is what `out/2026-W39/index.html` was published as. Docs tools can't update it, and creating a doc bound to that URL would make a *different* object at a link that already holds a live artifact — exactly the duplicate-publish trap `CLAUDE.md` warns about. So I stopped rather than improvise.
+The id is well-formed (22 chars), and the connector's own hint says that for a well-formed id "the answer stands" — retrying won't change it. That's the expected result for an HTML artifact, which is what `out/2026-W39/index.html` was published as. Docs tools can't update it, and creating a doc bound to that URL would put a *different* object at a link that already holds a live artifact — the duplicate trap `CLAUDE.md` warns about, and the thing you explicitly said not to do.
 
-**The artifact at `4z9mbcvKTmLVEXMVxXThBC` is unchanged.** It still shows whatever it showed before this run. The local page is fine and genuinely current — regenerated 16:54 with all 7 summaries, including the two just-queued videos (`G4oiEpLPaRM`, `W6xkZy9nkaI`) — it just never left the disk.
+**The artifact at `4z9mbcvKTmLVEXMVxXThBC` is unchanged.** The local page is current and genuinely authoritative — 83,934 bytes regenerated at 17:22 against all 11 summaries in `out/2026-W39/` — it just never left the disk.
 
-**A real bug this exposed,** in `drain:144-152`. The "verify rather than trust" check re-reads `artifact_url` from `meta.json` — but on the *update* path that value was already there from the previous publish. It survives a totally failed republish, so `FINAL` is non-empty and drain logs `artifact live: …` and commits. The check only actually verifies the new-week path, where drain writes the URL from the model's output. This is the W39 failure mode again one level up: last time drain trusted an exit code, now it trusts a field it didn't write this run.
+This has happened before on this exact task: `out/2026-W39/.publish.log` contained a prior session's report of the same wall, and something has since truncated it to zero bytes (it's the one modified file in your working tree).
 
-Had I answered with just the URL as the prompt asked, drain would have logged success and pushed a commit over a no-op. Two things worth your call:
+**A real bug this exposes,** at `drain:144-152`. The "verify rather than trust" check re-reads `artifact_url` from `meta.json` — but on the *update* path that value is already there from the earlier publish. It survives a completely failed republish, so `FINAL` is non-empty, drain logs `artifact live: …` and commits. Only the new-week path is actually verified, because that's the only one where drain writes the URL from the model's output. Same failure as the W39 rollover, one level up: drain trusted an exit code then, and trusts a field it didn't write this run now. `meta.json` still says `"published": "2026-09-25"` from 12:55, four regenerations stale.
 
-1. **Why is the Artifact tool missing from `claude -p`?** Worth checking whether the headless session gets it at all — if not, drain's whole publish design needs a different mechanism, and the new-week path is silently broken too.
-2. **Make the update path prove freshness** — e.g. have the model echo a content hash of the file it published and compare, or record a `published` timestamp per run and require it to advance. Right now a stale `meta.json` is indistinguishable from a successful republish.
+Two things need your call:
+
+1. **Why does `claude -p` lack the Artifact tool?** If headless sessions never get it, drain's whole publish step needs a different mechanism — and the new-week path is silently broken too, not just updates.
+2. **Make the update path prove freshness** — have the publishing session echo a content hash of what it published and compare, or require `published` to advance per run. Right now stale `meta.json` and successful republish are indistinguishable.
 
 I made no commits and changed no files. Want me to dig into (1), or patch the verification in (2)?
