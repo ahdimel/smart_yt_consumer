@@ -1,17 +1,18 @@
-I did not publish, and I'm deliberately not emitting a URL. Here's why.
+I can't do this, and I'm deliberately not echoing any artifact URL — including the index one — because the caller extracts the first `claude.ai/artifact/...` match from my output and writes it into `meta.json` as a successful publish.
 
-**I am the `claude -p` subprocess that `drain` just spawned.** The prompt I was given is verbatim `drain:124-127`, the drain log's last line is `13:00:58 new week — publishing a fresh artifact for 2026-W40`, and the 0-byte `out/2026-W40/.publish.log` is the file my stdout is being redirected into.
+**What's wrong:** there is no Artifact tool in this session. I checked the loaded tools and searched the deferred-tool registry for `Artifact`, `ArtifactCheck`, `ArtifactData`, `ArtifactComments` — no matches. This is the failure mode documented at `publish:4-6`: `claude -p` only has the Artifact tool when launched from a session context, not under launchd.
 
-**This session has no Artifact tool.** I checked the loaded tool list and searched the deferred registry twice (`select:Artifact,...` and `+artifact`) — it isn't there. This is the exact failure mode your own `publish` script documents at the top:
+**Your premise checks out, though** — I verified before concluding anything:
+- `out/2026-W40/meta.json` does not exist, and no commit ever contained it (`git log --all` on that path is empty). So a fresh publish with no `url` parameter is the right call, per the rule in CLAUDE.md.
+- W38 and W39 both have `meta.json` with recorded URLs; `out/index.meta.json` has the standing index URL. Those are untouched.
 
-> `claude -p` only has the Artifact tool when launched from a session context. Under launchd it is absent, which is why the scheduled drain can build and push pages but never publish them.
+**State on disk, unchanged and honest:**
+- `out/2026-W40/index.html` exists (54,107 bytes, built 13:25 today) and covers 4 summaries — note the last two commits say "2 video(s) for 2026-W40", so the page is ahead of the digest messages.
+- `out/2026-W40/.publish.log` is 0 bytes. No `meta.json` written, so `drain` will log `ARTIFACT PUBLISH FAILED for 2026-W40` — which is accurate.
+- `out/.index.log` already contains a near-identical failure report from an earlier non-interactive run, so this has happened at least once before.
 
-Your premise was right on every point I could verify — there's no `out/2026-W40/meta.json`, so this genuinely is a new week and a fresh publish with no `url` parameter is correct. The blocker is purely the missing tool.
+**Two things worth fixing in the scripts:**
+1. `publish:52` and `drain:130` scrape the URL out of my prose. Any explanation that mentions a URL for any reason passes the subsequent `grep -q` guard at `publish:54`. Requiring the URL on a line by itself (`grep -oE '^https://claude\.ai/artifact/[A-Za-z0-9]+$'`) would make the guard match the prompt's actual contract.
+2. Neither script checks for the Artifact tool before spending a 900s `run_capped` budget on a session that cannot possibly succeed.
 
-**Why I won't guess or synthesize a URL:** `drain:130` greps my stdout for `claude.ai/artifact/<alnum>`, writes the first hit into `meta.json` as W40's authoritative `artifact_url`, then commits and pushes it. `publish`'s staleness check treats any week with an `artifact_url` and a matching `published_sha` as current, so a fabricated URL would mark W40 permanently published, point the standing index at a dead link, and never retry. Emitting nothing is what makes `drain` take its failure branch and log `ARTIFACT PUBLISH FAILED` — which is the designed, recoverable outcome. This is the same trust-the-exit-code trap that cost you the W39 rollover, just one layer up.
-
-Running `./publish` myself wouldn't help — it shells out to `claude -p` from this same tool-less context and would fail identically.
-
-**The fix:** run `./publish` from an interactive Claude Code session on your Mac. It will find W40 stale (page exists, no `meta.json`), publish it fresh with icon `calendar`, record the returned URL, and refresh the standing index. The two summaries are already built, committed, and pushed — only the artifact is missing.
-
-One thing worth deciding: `drain` will retry this publish every 15 minutes under launchd and fail the same way each time, appending a failure line per run. If you want, I can make `drain` skip the publish step when the Artifact tool is unavailable and log a single "deferred to ./publish" line instead, so the log stays readable until you run it.
+To actually publish W40: run `./publish` from an interactive Claude Code session on the Mac. It will pick up W40 as stale (no `artifact_url`) and take the fresh-publish branch at `publish:48-52`.
