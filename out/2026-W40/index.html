@@ -1,0 +1,160 @@
+<title>Week of 28 Sep – 4 Oct 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f6f7f9; --card:#ffffff; --ink:#17202c; --body:#2c3846;
+    --muted:#63707f; --rule:#dde2e8; --accent:#0d6f7d; --accent-soft:#e3f0f1;
+    --contest:#a04e39;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+      --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+      --contest:#d78a72;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#111721; --card:#18202b; --ink:#e9edf2; --body:#c3cdd8;
+    --muted:#8593a3; --rule:#2a3542; --accent:#4cbccb; --accent-soft:#16333a;
+    --contest:#d78a72;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper); color:var(--body);
+    font-family:"Newsreader",Georgia,serif; font-size:1.0625rem; line-height:1.62; margin:0}
+  .wrap{max-width:41rem; margin:0 auto; padding-inline:20px; padding-block:2.5rem 4rem}
+  .mono,.ts{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+
+  .eyebrow{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.11em;
+    text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:.7rem}
+  h1{font-size:clamp(1.9rem,6vw,2.7rem); line-height:1.1; font-weight:600; color:var(--ink);
+    margin:0 0 .8rem; letter-spacing:-.017em; text-wrap:balance}
+  .dek{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted);
+    letter-spacing:.05em; margin:0 0 2rem}
+
+  nav{position:sticky; top:env(safe-area-inset-top,0px); background:var(--paper);
+    border-bottom:1px solid var(--rule); margin-bottom:2.5rem; z-index:5;
+    display:flex; flex-wrap:wrap; gap:.35rem .9rem; padding:.75rem 0}
+  nav a{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.04em;
+    color:var(--muted); text-decoration:none; border-bottom:1px solid transparent}
+  nav a:hover,nav a:focus-visible{color:var(--accent); border-bottom-color:var(--accent)}
+
+  article{border-top:1px solid var(--rule); padding-top:2.2rem; margin-top:3.5rem;
+    scroll-margin-top:4rem}
+  article:first-of-type{margin-top:0; border-top:0; padding-top:0}
+  .kicker{font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); display:flex; flex-wrap:wrap;
+    gap:.35rem .8rem; margin-bottom:.7rem}
+  h2{font-size:1.5rem; line-height:1.2; font-weight:600; color:var(--ink);
+    margin:0 0 1.1rem; text-wrap:balance; letter-spacing:-.01em}
+  h3{font-size:.72rem; font-family:"IBM Plex Mono",monospace; font-weight:600;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--muted);
+    margin:2.2rem 0 1rem; padding-bottom:.45rem; border-bottom:1px solid var(--rule)}
+  h4{font-size:1.05rem; font-weight:600; color:var(--ink); margin:1.8rem 0 .7rem; line-height:1.3}
+  h5{font-size:.95rem; font-weight:600; color:var(--ink); margin:1.4rem 0 .5rem}
+
+  .verdict{background:var(--card); border:1px solid var(--rule); border-left:3px solid var(--accent);
+    border-radius:3px; padding:1.1rem 1.2rem; margin-bottom:1rem}
+  .verdict p{margin:0 0 .7rem; color:var(--ink); font-size:1rem}
+  .verdict p:last-child{margin-bottom:0}
+  .cost{font-family:"IBM Plex Mono",monospace; font-size:.72rem; color:var(--muted); line-height:1.65}
+  .cost b{color:var(--ink); font-weight:600}
+  .src{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:.68rem;
+    color:var(--accent); text-decoration:none; margin-bottom:1.6rem;
+    border-bottom:1px solid transparent}
+  .src:hover,.src:focus-visible{border-bottom-color:var(--accent)}
+
+  p{margin:0 0 1.15rem}
+  ul{margin:0 0 1.15rem; padding-left:1.15rem}
+  li{margin-bottom:.6rem}
+  blockquote{margin:0 0 1.15rem; padding-left:1rem; border-left:2px solid var(--contest);
+    color:var(--body)}
+  .ts{font-size:.67rem; font-weight:500; color:var(--accent); background:var(--accent-soft);
+    padding:.15em .4em; border-radius:2px; white-space:nowrap; margin-left:.25em;
+    font-variant-numeric:tabular-nums}
+  .mono{font-size:.9em}
+  a{color:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:.9rem; margin:0 0 1.15rem}
+  td,th{padding:.4rem .6rem .4rem 0; text-align:left; border-bottom:1px solid var(--rule)}
+
+  .foot{margin-top:4rem; padding-top:1.4rem; border-top:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace; font-size:.67rem; color:var(--muted); line-height:1.75}
+  @media (max-width:420px){ .wrap{padding-block:2rem 3rem} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">smart_yt_consumer &middot; 2026-W40</p>
+  <h1>Week of 28 Sep – 4 Oct 2026</h1>
+  <p class="dek">2 video(s) &middot; stripped to claims &middot; comments read for corrections</p>
+
+  <nav><a href="#trump-and-corporate-america-at-the-midte">Trump &amp; business</a><a href="#trump-s-treasury-chief-on-prices-ai-and-">Bessent on AI</a></nav>
+
+  <article id="trump-and-corporate-america-at-the-midte">
+<div class="kicker"><span>DW News</span><span>18m19s</span><span>19,963 views</span></div>
+<h2>Trump and corporate America at the midterms | DW News</h2>
+<div class="verdict"><p><strong>Skip the video.</strong> Dense, well-sourced and almost unpadded, but every claim is text — the graphics illustrate, they don't carry. If you watch one stretch, make it <span class="ts">15:40</span>–<span class="ts">17:10</span>.</p><p class="cost"><b>~1 of 18 min</b> worth watching &middot; <b>7% fluff</b> &middot; 2,914 → 870 words (3.4:1)</p></div>
+<a class="src" href="https://youtu.be/SpGKvIbiVWg">watch on YouTube &rarr;</a>
+<h4>The claim the piece exists to make</h4>
+<p>Stated plainly only at <span class="ts">15:22</span>: American presidents have always intervened in corporate America, so intervention is not the novelty. Three things are. Trump's interventions are not rare but routine; they are not routed through Congress, which constitutionally controls the budget; and they generate revenue the executive controls directly. DW's framing is investor / broker / rent-taker, and the three sections are evidence for the one claim about Congress.</p>
+<p>The historical baseline is handled fairly. Nixon bailed out Lockheed in 1971, Carter guaranteed Chrysler's loans in 1979, Bush and Obama saved GM and Chrysler in 2008–09 (<span class="ts">01:30</span>), and each president framed the rescue as an emergency exception. The ordinary toolkit — tax credits, grants, subsidies, loan guarantees, tariffs — is congressionally approved and politically contested (oil, corn ethanol) (<span class="ts">02:23</span>). Acting alone also has precedent: Bush redirected bank rescue money to carmakers, Biden put a 100% tariff on Chinese EVs, and post-pandemic supply-chain anxiety produced the CHIPS and climate bills — which did go through Congress, aimed at China (<span class="ts">03:00</span>–<span class="ts">05:07</span>). CFR's William Hinnegan notes a genuine bipartisan consensus that the state should steer sensitive technology sectors. So the video concedes most of the continuity case before making its discontinuity case.</p>
+<h4>Investor</h4>
+<p>A 10% Intel stake for $9bn in 2025, plus a portfolio of other stakes, many undisclosed (<span class="ts">05:07</span>). Equity injects capital like a grant but without an application process, and signals government preference. CSIS's Suji Shivakumar defends it on Intel's "root system" argument: the knowledge, supply and production networks under Intel are the US semiconductor industry, so letting it fail costs more than the company. Empirically the signal worked — shares up over 300% by September, a deal with Nvidia, a preliminary Apple chip deal (<span class="ts">06:30</span>).</p>
+<p>Cato's Tad DeHaven's objection is the sharpest thing in the video (<span class="ts">06:50</span>): that is precisely the problem. A government stake masks the company's fundamentals and moves the state from referee — "already not neutral in a lot of ways" — to thumb on the scale. The strategy question is left open: majority owner dictating direction, or passive shareholder for stability (<span class="ts">07:02</span>).</p>
+<p>Two process complaints. The administration bought shares using money Congress legislated as grants and loans (<span class="ts">07:20</span>). And company selection is opaque: the military took 15% of MP Materials, the only active US rare-earth miner; Commerce later took a $50m stake in Vulcan Elements, plus a large Pentagon loan. Vulcan is backed by 1789 Capital, where Donald Trump Jr. is a partner, and ProPublica linked the loan decision to White House instructions (<span class="ts">07:40</span>). Further 1789-backed deals followed — SaQuantum, and reportedly drone companies including Unusual Machines, where Trump Jr. is both investor and board member. DeHaven's formulation is careful: no provable direct connection, but the appearance alone is corruptive and erodes faith in institutions.</p>
+<h4>Broker</h4>
+<p>Stargate ($500bn, OpenAI/SoftBank), the TikTok US transfer, mediation of Nippon Steel's US Steel purchase (<span class="ts">09:00</span>). Precedent again granted: Hoover pushed Ford to rescue a Detroit bank, Paulson pressured JPMorgan into Bear Stearns and BofA into Merrill, and Biden's own block of Nippon Steel on national-security grounds was itself unusual. Hinnegan: every president for 50 years has brokered deals; it's a core instrument of the office.</p>
+<p>The distinguishing evidence is scope and arbitrariness. Trump phoned Coca-Cola about cane sugar (<span class="ts">10:20</span>); called for Microsoft to fire an executive over prior Biden DOJ employment (<span class="ts">12:10</span>). The Ellison material is the strongest single case (<span class="ts">10:53</span>): Larry Ellison reportedly donated $45m to a nonprofit backing Trump's 2024 election (WSJ); Oracle is in Stargate, won Saudi AI data-centre deals Trump announced, and runs TikTok US; Paramount Skydance — family's largest holding, son David as CEO — was buying Warner Bros Discovery when Netflix threatened to outbid, Trump said that takeover "could be a problem," and Netflix withdrew.</p>
+<p>The mechanism that makes all of this bind: every company has business before the government, so declining is expensive, and markets now price a firm's standing with Trump directly — Tesla fell during the Musk feud, Intel fell on criticism of its CEO and rose on praise (<span class="ts">11:40</span>).</p>
+<h4>Rent-taker</h4>
+<p>Reportedly considering 5% of OpenAI, ~$43bn at current valuation (<span class="ts">13:03</span>). Export-licence fees on Nvidia and AMD chips to China; a $10bn fee attached to the TikTok approval (WSJ); H-1B visas repriced to $100,000 each until a judge struck it down. Each leans on the regulator role to extract a rent. Tariffs are the largest source, and explicitly revenue rather than industrial policy — "making America rich again" — with hundreds of billions claimed in year one, the first regime curtailed by the Supreme Court and new tariffs since (<span class="ts">13:50</span>).</p>
+<p>What the money is for stays unresolved. The OpenAI stake is linked to a sovereign wealth fund Trump would control without congressional guardrails or an independent board. Claims about replacing income tax or retiring the debt don't survive arithmetic: DeHaven notes that selling the entire Intel stake buys roughly half a day of federal spending (<span class="ts">14:50</span>).</p>
+<h4>The cost claimed</h4>
+<p>Hinnegan's test (<span class="ts">15:40</span>) is the one piece of the video worth hearing in his own words: a democratically elected president is constrained by laws, rules and norms; an autocrat with a democratic mandate operates from an <em>enforceability</em> standard, using state instruments to obtain outcomes at the expense of the constraints meant to stop exactly that. The economic argument leans on Robinson's <em>Why Nations Fail</em>: institutions generate trust, trust is binary, and when it goes it goes at once, with immediate fallout. That is assertion, not evidence — the weakest link in an otherwise well-evidenced piece.</p>
+<p>The bookend does land. The opening deals return at <span class="ts">17:35</span>: Total Energies got $928m of wind lease payments refunded on condition it not sue and invest the same sum in oil and gas. It will put the money toward a Texas LNG project it had already committed to months earlier. No new investment — just a billion-dollar payment, settled outside court.</p>
+<section class="contested"><h3>What the comments contest</h3>
+<p>One substantive objection, and it goes at the thesis rather than any fact (9 likes): Trump is a symptom, not a cause — both parties run on super-PAC money controlled by corporations and large donors, and the legal frameworks protecting citizens and small business eroded over decades. The video's entire structure depends on Trump being a discontinuity, and it never engages this. A related framing, "corporate socialism" (7 likes), and a reply noting America "was always like this, just less shamelessly" (3 likes), make the same point more cheaply. One commenter (1 like) asks that the interviewees' political leanings be disclosed — half fair: the video flags Cato as free-market but says nothing about CSIS's or CFR's orientation. The rest is whataboutism (Burisma, 3 likes), accusations of DW bias with no specific claim challenged, and energy-policy shouting. No one corrects a fact.</p>
+</section>
+</article>
+<article id="trump-s-treasury-chief-on-prices-ai-and-">
+<div class="kicker"><span>Axios</span><span>42m24s</span><span>13,829 views</span></div>
+<h2>Trump's Treasury chief on prices, AI and Iran | The Axios Show</h2>
+<div class="verdict"><p><strong>Skim.</strong> The AI block contains real news — a de facto pre-release review regime for frontier models, used once — and everything on prices is spin you can read here instead of watching.</p><p class="cost"><b>~16 of 42 min</b> worth watching &middot; <b>8% fluff</b> &middot; 6,333 → 1,065 words (5.9:1)</p></div>
+<a class="src" href="https://youtu.be/NKPvU0Xj5ss">watch on YouTube &rarr;</a>
+<p>Worth watching: <span class="ts">07:00</span>–<span class="ts">19:30</span> (AI) and <span class="ts">20:20</span>–<span class="ts">24:25</span> (markets, Argentina). The rest — inflation, biography, Trump Accounts, Musk — is fully contained below.</p>
+<h4>The disclosure that justifies the runtime</h4>
+<p>At <span class="ts">16:15</span> Allen asserts, and Bessent confirms, that the administration reviews the frontier labs' models weeks before release and orders pauses when it wants one. Bessent's framing: it is "all voluntary right now," with one exception — a single instance where a lab "went against something that we had seen," which he attributes to Anthropic, and where the government intervened. He calls it a clean result: "There was a boundary, it was tested, it was a successful test" (<span class="ts">17:17</span>). He adds that OpenAI is now voluntarily holding models back for more testing, and that having made the point once he doesn't expect to need to do it again.</p>
+<p>Strip the framing and the claim is: the US already runs pre-release review of frontier models on consent, with an unlegislated reserve power behind it, and Treasury's preference is to leave it uncodified. The "right now" in "voluntary right now" is the load-bearing word, and Allen catches it; Bessent doesn't elaborate.</p>
+<h4>His position on AI risk</h4>
+<p>Labs asking to be regulated get no sympathy: "then they should slow down… it's kind of like Hannibal Lecter, stop me before I kill again" (<span class="ts">16:15</span>). He won't endorse David Sacks' line that AI harm worries are BS — "we have to be prepared for every occasion" — but calls "alarmism without solutions" a failure of leadership (<span class="ts">15:14</span>). On liability he sides with MIT's Dan Huttenlocher: responsibility lands on the people at the labs, and he says the labs have come round to that (<span class="ts">12:12</span>). Asked the sharp question — if existing product liability law suffices for AI, why not deregulate everything else and rely on it too — he has no answer and says it needs more exploration (<span class="ts">17:17</span>).</p>
+<p>He also concedes the field's priorities are lopsided: "we are doing this hard scramble to the frontier for the models. We really need to start worrying more about resilience and defense too" (<span class="ts">14:14</span>). After the release of a model he calls Mythos, he convened the big-bank CEOs at Treasury and stood up a clearing house, <strong>Golden Eagle</strong>, to push cyber best practices from the megabanks down through super-regionals to community banks (<span class="ts">13:14</span>). Asked how worried he is about a day-after scenario where accounts read zero, he retreats to "the system is quite healthy" (<span class="ts">14:14</span>) — a weaker answer than the structure he just described implies.</p>
+<h4>China</h4>
+<p>Bessent runs the US–China relationship. His argument for why the lead matters is not capability but disposition: a China in front would be less willing to talk about safety at all (<span class="ts">10:07</span>). He claims a substantial US lead, China second, everyone else far back — but warns that Chinese open-source models at 80–90% of frontier capability ship <em>without guardrails</em> and can be imported anywhere, which is the real diffusion problem. He and the vice premier discussed three risk areas: uncontrolled agents, and non-state actors with cyber or with biologics (<span class="ts">11:09</span>).</p>
+<p>He expects to agree a <strong>notification channel</strong> for when something goes wrong (<span class="ts">12:12</span>), and expects <em>not</em> to get mutual visibility into coming model capabilities — the realistic ceiling is "this is what models should not do" (<span class="ts">13:14</span>). His evidence that Beijing has woken up in the last 60 days: Chinese labs do "industrial distillation" of US models — "Kimi thinks she is Claude" — and Kimi returned PLA weapons plans to Anthropic (<span class="ts">11:09</span>). He says that episode is public. Treat it as his claim; it is the single most checkable thing he says, and the most consequential if true.</p>
+<h4>The bubble question, and the jobs claim</h4>
+<p>Not a bubble, because the spenders are different from 1999: hyperscalers funding build-out off their own balance sheets rather than speculative pets.com equity, plus unprecedented revenue growth at Anthropic and OpenAI (<span class="ts">08:05</span>). It's a real distinction but an incomplete one — it addresses who absorbs a loss, not whether the capex earns its return. He notes in passing that some read the causality backwards: rates are high <em>because</em> of AI capital demand (<span class="ts">07:03</span>).</p>
+<p>On jobs he's a net optimist, and unusually he offers administrative data rather than vibes: a record number of EIN applications at the IRS and record small-business payment-portal requests at a large processor, which he reads as the predicted proliferation of one-to-three-person firms arriving (<span class="ts">18:18</span>). He expects AI to be <strong>disinflationary</strong> over the medium term — the build-out is a prepayment in capital and natural resources against later productivity (<span class="ts">19:18</span>).</p>
+<h4>Iran, prices, and markets</h4>
+<p>Iran (<span class="ts">05:03</span>–<span class="ts">07:03</span>): six weeks kinetic — navy and air force destroyed, drone and missile stock depleted and rebuilding capacity hit — then the blockade ("Iron Wall"), now Operation Economic Outcast. The specific claim: Iran's oil on the water goes to zero this week, first time since they began pumping, and revenues with it. Checkable, and the strongest fact in the interview.</p>
+<p>Prices (<span class="ts">01:40</span>–<span class="ts">05:03</span>) are where he's weakest. Allen leads with the AP poll — under one in five approve of Trump's handling of cost of living — and gas at $4.41, up $1.25 year over year. Bessent's move is to reclassify: that's <em>headline</em> inflation; "food at home" is back to 2.2%. He cites 3.5–3.7% median wage growth, strong card spend especially in the bottom two quintiles with the top quintile softening, and banks seeing larger weekly wage deposits. Then the concession that undercuts the whole segment: wages are running "about in line with headline inflation," and "breaking even after what happened during the Biden years is not our goal" (<span class="ts">04:01</span>). So the defence of the golden age is that voters are roughly treading water, with the case for improvement resting on the energy shock fading, oil becoming better supplied, and a manufacturing renaissance. He declines to engage the Wall Street Journal's reporting on substance — "I'm not gonna speak to the veracity of the journal."</p>
+<p>Markets (<span class="ts">20:21</span>–<span class="ts">24:25</span>): "I am the house now" meant he has superior information, not that he wins every hand — the house plays percentages. Rising yields are a global move, not idiosyncratic to the US; US bond performance is the best in the world since Trump took office, and nobody is selling Treasuries for bunds or JGBs. He calls the Financial Times "anti-American, anti-business… that disgrace publication in London" for reporting he failed to break the bond market's fever. The substantive tell is Argentina (<span class="ts">23:23</span>): a fully secured central-bank currency swap to bridge an ally through an election against an opposition "trying to turn the markets against him" — he says it made money, credits it with a generational realignment in Latin America, and confirms he'd do it again. That is the real answer to "will Treasury intervene," and it's yes.</p>
+<p>Fed search (<span class="ts">24:25</span>): 12 candidates narrowed down, "100% the decision of the president," no thumb on the scale — though he also supplied the criterion that selected the field, telling Trump "to succeed, you have to have been in the building before," and all finalists had been. Note Warsh's view, which he repeats without distancing himself: the Fed took powers Treasury traditionally held pre-GFC.</p>
+<h4>Trump Accounts</h4>
+<p>Auto-enrollment is complete (<span class="ts">31:38</span>): accounts exist, parents claim them at trumpaccounts.gov, $1,000 Treasury seed for children born during the second term, ~8M accounts self-created before auto-enrollment. Employers can contribute up to $2,500 as a fringe benefit; states are considering top-ups; philanthropists can adopt a zip code or district, with 100% passing through. His case is financial-literacy access, not returns: 38% of Americans have no equity exposure, and a household without $500 for an emergency won't open a brokerage account — "financial service deserts" (<span class="ts">32:39</span>). He calls it the most important benefit for young people since the GI Bill, which is a claim about ambition, not evidence. The tax bill's "symmetry" (<span class="ts">37:42</span>): 100% expensing for equipment, factories and farm structures on one side; no tax on tips and overtime, 85% of seniors untaxed on Social Security, and auto-loan deductibility on the other.</p>
+<section class="contested"><h3>What the comments contest</h3>
+<p>The comment section is overwhelmingly about the interviewer, not the content — "let the guy finish his thought" (26), "can't stop interrupting" (23), "terrible interviewer" (18), and a dozen variants accusing Allen of hunting clips. Several note the hard jump cuts between question sets. On substance, three omissions get named repeatedly and none are rebutted in the video: <strong>no debt or deficit question at all</strong> (8) — $40T, ~$311k per taxpayer, and $2T+ annual interest at 5%, which is a conspicuous gap in a Treasury Secretary interview; <strong>no question on the purpose or end-state of the Iran war</strong> (7) — "when is the mission accomplished?"; and <strong>nothing on USD devaluation</strong> or the Fed raising twice (1). One commenter counters the food-at-home dodge with the household basket Bessent skipped — mortgage rates near 8%, insurance premiums, housing supply skewed to large homes (8). Two AI-specific challenges are worth the weight they didn't get: that the government "has no plan, or even a concept of a plan" for AI downside (2), and that the labs' regulation requests are an attempt to move liability onto government (2) — the direct counter to Bessent's Hannibal Lecter line. The sharpest one-liner is also fair criticism: "'Other than headline inflation the numbers are strong' is like saying 'other than President Kennedy getting assassinated, the parade was a success'" (3).</p>
+</section>
+</article>
+
+  <p class="foot">
+    Generated by <a href="https://github.com/ahdimel/smart_yt_consumer">smart_yt_consumer</a>.<br>
+    Manual captions preferred over auto; top comments by likes, creator and low-signal excluded.<br>
+    Fluff measured from timestamped ad, teaser, restatement and B-roll spans.
+  </p>
+</div>
+<style>
+  .contested{border-left:2px solid var(--contest); padding-left:1rem; margin-top:1.8rem}
+  .contested h3{color:var(--contest); border-bottom-color:var(--contest); margin-top:0}
+  .contested ul{list-style:none; padding:0; display:grid; gap:1rem}
+  .contested li{margin:0}
+</style>
