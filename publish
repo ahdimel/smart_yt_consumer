@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# publish — bring every stale week artifact (and the index) up to date.
+#
+# MUST be run from an interactive session, not launchd: `claude -p` only has the
+# Artifact tool when launched from a session context. Under launchd it is absent,
+# which is why the scheduled drain can build and push pages but never publish them.
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; cd "$ROOT"
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.nvm/versions/node/v24.15.0/bin:$PATH"
+log(){ printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"; }
+
+command -v claude >/dev/null || { log "FATAL: claude CLI not on PATH"; exit 1; }
+git pull --rebase --autostash -q 2>/dev/null || true
+
+stale(){ # week dir -> prints the week tag if its page differs from what was published
+  local d="$1" tag; tag="$(basename "$d")"
+  [[ -f "$d/index.html" ]] || return
+  python3 - "$d" "$tag" <<'PY'
+import json, sys, os, hashlib
+d, tag = sys.argv[1], sys.argv[2]
+mp = os.path.join(d, 'meta.json')
+meta = json.load(open(mp)) if os.path.exists(mp) else {}
+cur = hashlib.sha256(open(os.path.join(d, 'index.html'), 'rb').read()).hexdigest()[:16]
+if not meta.get('artifact_url') or meta.get('published_sha') != cur:
+    print(tag)
+PY
+}
+
+TODO=()
+for d in out/*-W*; do [[ -d "$d" ]] && { t="$(stale "$d")"; [[ -n "$t" ]] && TODO+=("$t"); }; done
+python3 lib/index_page.py >/dev/null 2>&1
+
+if [[ ${#TODO[@]} -eq 0 ]]; then
+  log "all weeks current"
+else
+  log "stale weeks: ${TODO[*]}"
+fi
+
+for WEEK in ${TODO[@]+"${TODO[@]}"}; do
+  META="out/$WEEK/meta.json"; URL=""
+  [[ -f "$META" ]] && URL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$META" 2>/dev/null)"
+  if [[ -n "$URL" ]]; then
+    log "updating $WEEK -> $URL"
+    claude -p "Use the Artifact tool. Read the artifact at $URL, then republish the local file
+out/$WEEK/index.html to that SAME url by passing url=$URL. The local file is authoritative.
+Do not create a new artifact. Reply with the URL only." > "out/$WEEK/.publish.log" 2>&1
+  else
+    log "publishing $WEEK fresh"
+    claude -p "Use the Artifact tool to publish out/$WEEK/index.html as a NEW artifact. There is
+no existing artifact for this week, so do NOT pass a url parameter. Use icon 'calendar'.
+Reply with the artifact URL on a line by itself and nothing else." > "out/$WEEK/.publish.log" 2>&1
+    URL="$(grep -oE 'https://claude\.ai/artifact/[A-Za-z0-9]+' "out/$WEEK/.publish.log" | tail -1)"
+  fi
+  if [[ -n "$URL" ]] && grep -q "$URL" "out/$WEEK/.publish.log" 2>/dev/null; then
+    python3 - "$WEEK" "$URL" "$META" "out/$WEEK/index.html" <<'PY'
+import json, sys, datetime, hashlib
+week, url, meta, page = sys.argv[1:5]
+json.dump({'week': week, 'artifact_url': url,
+           'published': datetime.date.today().isoformat(),
+           'published_sha': hashlib.sha256(open(page,'rb').read()).hexdigest()[:16]},
+          open(meta, 'w'), indent=2)
+open(meta, 'a').write('\n')
+PY
+    log "  ok: $URL"
+  else
+    log "  FAILED — see out/$WEEK/.publish.log"
+  fi
+done
+
+IDXMETA="out/index.meta.json"
+if [[ -f "$IDXMETA" ]]; then
+  IDXURL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$IDXMETA")"
+  log "refreshing index -> $IDXURL"
+  claude -p "Use the Artifact tool. Read the artifact at $IDXURL, then republish local file
+out/index.html to that SAME url by passing url=$IDXURL. Reply with the URL only." \
+    > out/.index.log 2>&1
+  grep -q "$IDXURL" out/.index.log && log "  ok" || log "  FAILED — see out/.index.log"
+fi
+
+git add -A out && git commit -q -m "publish: bring artifacts current" 2>/dev/null && git push -q 2>/dev/null
+log "done"

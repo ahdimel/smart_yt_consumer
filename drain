@@ -141,16 +141,27 @@ PY
   fi
 fi
 
-# Verify rather than trust: `claude -p` exits 0 whenever the session ends, whether
-# or not anything was published. Only meta.json proves it.
+# Verify rather than trust. `claude -p` exits 0 whenever the session ends, published
+# or not -- and checking meta.json only proves a URL was recorded at SOME point, which
+# on the update path is always true. The real signal is the model echoing the URL back;
+# a session lacking the Artifact tool refuses and omits it.
 FINAL=""
 [[ -f "$META" ]] && FINAL="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('artifact_url',''))" "$META" 2>/dev/null)"
-if [[ -n "$FINAL" ]]; then
+if [[ -n "$FINAL" ]] && grep -q "$FINAL" "$PUBLOG" 2>/dev/null; then
   log "artifact live: $FINAL"
+  # record what was published, so staleness is detectable later
+  python3 - "$META" "out/$WEEK/index.html" <<'PY'
+import json, sys, hashlib
+meta, page = sys.argv[1], sys.argv[2]
+d = json.load(open(meta))
+d['published_sha'] = hashlib.sha256(open(page, 'rb').read()).hexdigest()[:16]
+json.dump(d, open(meta, 'w'), indent=2); open(meta, 'a').write('\n')
+PY
   git add -A out && git commit -q -m "publish: $WEEK artifact" 2>/dev/null && git push -q 2>/dev/null
 else
-  log "ARTIFACT PUBLISH FAILED for $WEEK — model output in $PUBLOG"
-  log "  last line: $(tail -1 "$PUBLOG" 2>/dev/null | cut -c1-160)"
+  log "ARTIFACT PUBLISH FAILED for $WEEK — page built and pushed, artifact NOT updated"
+  log "  run ./publish from an interactive session; output in $PUBLOG"
+  log "  reason: $(tail -3 "$PUBLOG" 2>/dev/null | tr '\n' ' ' | cut -c1-200)"
 fi
 
 # Refresh the standing index so there is one stable link that always lists the

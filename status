@@ -34,6 +34,26 @@ else
   [[ -d "out/$WEEK" ]] && bad "$WEEK has summaries but NO artifact — see $LOG" \
                        || echo "  • no videos yet this week"
 fi
+STALE="$(python3 - <<'PY'
+import json, os, glob, hashlib
+out = []
+for d in sorted(glob.glob('out/*-W*')):
+    page = os.path.join(d, 'index.html')
+    if not os.path.exists(page):
+        continue
+    mp = os.path.join(d, 'meta.json')
+    meta = json.load(open(mp)) if os.path.exists(mp) else {}
+    cur = hashlib.sha256(open(page, 'rb').read()).hexdigest()[:16]
+    if not meta.get('artifact_url') or meta.get('published_sha') != cur:
+        out.append(os.path.basename(d))
+print(' '.join(out))
+PY
+)"
+if [[ -n "$STALE" ]]; then
+  bad "NOT PUBLISHED: $STALE — run ./publish (needs an interactive session, not launchd)"
+else
+  ok "all weeks published and current"
+fi
 [[ -f out/index.meta.json ]] && echo && echo "  index: $(python3 -c "import json;print(json.load(open('out/index.meta.json'))['artifact_url'])")"
 
 RECENT="$(grep -E "^($(date '+%Y-%m-%d')|$(date -v-1d '+%Y-%m-%d'))" "$LOG" 2>/dev/null \
