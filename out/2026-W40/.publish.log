@@ -1,18 +1,15 @@
-I can't do this, and I'm deliberately not echoing any artifact URL — including the index one — because the caller extracts the first `claude.ai/artifact/...` match from my output and writes it into `meta.json` as a successful publish.
+I can't complete this, and I'm deliberately **not** replying with the URL — here's why that matters.
 
-**What's wrong:** there is no Artifact tool in this session. I checked the loaded tools and searched the deferred-tool registry for `Artifact`, `ArtifactCheck`, `ArtifactData`, `ArtifactComments` — no matches. This is the failure mode documented at `publish:4-6`: `claude -p` only has the Artifact tool when launched from a session context, not under launchd.
+**The Artifact tool is not available in this session.** `ToolSearch` for `Artifact`/`ArtifactCheck` returns nothing; the only tools that can touch a `claude.ai/artifact/...` link here are the Claude Docs MCP tools, and those are for docs, not HTML artifacts. Reading the W40 artifact through them was refused with `access`, which per the connector's own guide means "another artifact type → use your artifact tools." There are none to use.
 
-**Your premise checks out, though** — I verified before concluding anything:
-- `out/2026-W40/meta.json` does not exist, and no commit ever contained it (`git log --all` on that path is empty). So a fresh publish with no `url` parameter is the right call, per the rule in CLAUDE.md.
-- W38 and W39 both have `meta.json` with recorded URLs; `out/index.meta.json` has the standing index URL. Those are untouched.
+This is the exact failure mode documented at the top of `publish:7-9` — `claude -p` only has the Artifact tool when launched from a session context, not under launchd. My prompt is verbatim the one `publish` sends, so this run was launched without that context.
 
-**State on disk, unchanged and honest:**
-- `out/2026-W40/index.html` exists (54,107 bytes, built 13:25 today) and covers 4 summaries — note the last two commits say "2 video(s) for 2026-W40", so the page is ahead of the digest messages.
-- `out/2026-W40/.publish.log` is 0 bytes. No `meta.json` written, so `drain` will log `ARTIFACT PUBLISH FAILED for 2026-W40` — which is accurate.
-- `out/.index.log` already contains a near-identical failure report from an earlier non-interactive run, so this has happened at least once before.
+**Why I'm withholding the URL:** `publish:50` gates success on `grep -q "$URL" out/2026-W40/.publish.log`. If I echoed the URL, that grep would match, and `publish:51-59` would rewrite `out/2026-W40/meta.json` with today's date and a fresh `published_sha` — recording a successful publish that never happened. That is precisely the W39 incident `CLAUDE.md` warns about. By not emitting it, the script logs `FAILED` and `meta.json` keeps its true state (`published_sha: edb9b6121a7b5a96`, from 2026-10-03).
 
-**Two things worth fixing in the scripts:**
-1. `publish:52` and `drain:130` scrape the URL out of my prose. Any explanation that mentions a URL for any reason passes the subsequent `grep -q` guard at `publish:54`. Requiring the URL on a line by itself (`grep -oE '^https://claude\.ai/artifact/[A-Za-z0-9]+$'`) would make the guard match the prompt's actual contract.
-2. Neither script checks for the Artifact tool before spending a 900s `run_capped` budget on a session that cannot possibly succeed.
+State as it stands:
 
-To actually publish W40: run `./publish` from an interactive Claude Code session on the Mac. It will pick up W40 as stale (no `artifact_url`) and take the fresh-publish branch at `publish:48-52`.
+- `out/2026-W40/index.html` (71,714 bytes) is genuinely stale — `publish`'s `stale()` selected W40, so its hash differs from `published_sha`. The republish is still needed.
+- `out/2026-W40/.publish.log` is now empty (18 lines truncated by this run's redirect) — that's the pending `git diff`, not a separate problem.
+- `meta.json` is untouched and still correct.
+
+To actually land it, run `./publish` from an interactive Claude Code session on the Mac, where the Artifact tool is present. If you'd like, I can add a guard to `publish` that fails fast when the spawned session reports no Artifact tool, so a toolless run can't be mistaken for a publish attempt.
