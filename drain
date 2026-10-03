@@ -103,6 +103,17 @@ python3 lib/week.py "$WEEK" >/dev/null && log "rebuilt out/$WEEK/index.html"
 git add -A out queue && git commit -q -m "digest: $ADDED video(s) for $WEEK" && git push -q \
   && log "pushed" || log "warn: git push failed"
 
+# Publishing is a manual step. `claude -p` only has the Artifact tool when launched
+# from inside a Claude Code session; under launchd it never does, so attempting it
+# here just burns two capped sessions and logs a failure every run. ./status reports
+# the week as NOT PUBLISHED until ./publish is run from a session.
+if [[ -z "${CLAUDECODE:-}" ]]; then
+  python3 lib/index_page.py >/dev/null 2>&1
+  git add -A out && git commit -q -m "index: refresh" 2>/dev/null && git push -q 2>/dev/null
+  log "artifact not updated (no Claude Code session) — run ./publish from one"
+  exit 0
+fi
+
 # Republish the week's artifact.
 #
 # The new-week and update cases are separate prompts: a single conditional prompt

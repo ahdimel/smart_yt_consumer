@@ -33,11 +33,22 @@ repo lived there, and the agent's own log was the only place that said so. Do no
 ## If you are on the user's Mac
 
 `./drain` — processes everything in `queue/`, writes summaries to `out/<ISO-week>/`,
-regenerates that week's page, commits, and republishes the weekly artifact. A LaunchAgent
+regenerates that week's page and commits; it republishes the artifact only when run from a
+Claude Code session (see "Publishing is manual"). A LaunchAgent
 (`~/Library/LaunchAgents/com.ahdimel.smartytconsumer.plist`) runs it every 15 minutes while the
 Mac is awake; it logs to `~/Library/Logs/smart_yt_consumer/drain.log`. **Check that log before
 believing the timer works** — `launchctl list` showing the job is not evidence it ran.
 `./vsum <url>` — one-off, bypasses the queue. Set `VSUM_FETCH_ONLY=1` for the bundle only.
+
+## Publishing is manual
+
+The scheduled drain fetches, summarizes, rebuilds the page and pushes, but does **not** publish.
+`claude -p` only has the Artifact tool when launched from inside a Claude Code session; under
+launchd it never does. So after new summaries land, the week's artifact is stale until someone
+publishes from a session: either run `./publish` there, or publish `out/<week>/index.html` and
+`out/index.html` with the Artifact tool directly (see the publishing rule below) and update
+`published_sha` in `meta.json`. `./status` shows "NOT PUBLISHED: <week>" while it is stale.
+If the user asks why new videos are missing from the digest, check this first.
 
 ## Checking health
 
