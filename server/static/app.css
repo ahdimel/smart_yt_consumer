@@ -1,0 +1,23 @@
+:root { --fg: #1b1b1b; --bg: #fbfbf9; --muted: #6b6b6b; --line: #deded8; --accent: #2a5db0; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg: #e8e8e4; --bg: #161616; --muted: #9a9a94; --line: #34342f; --accent: #8ab4f8; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+       font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+main { max-width: 72rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+a { color: var(--accent); }
+h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; margin-top: 2rem; }
+form { margin: .25rem 0; }
+form.row, section.row { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
+input, button { font: inherit; padding: .3rem .5rem; border: 1px solid var(--line);
+                border-radius: 4px; background: transparent; color: inherit; }
+button { cursor: pointer; }
+#url { width: 100%; margin: .25rem 0 .5rem; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; vertical-align: top; padding: .35rem .5rem; border-bottom: 1px solid var(--line); }
+small, .quota { color: var(--muted); }
+.note { padding: .5rem .75rem; border-left: 3px solid var(--accent); }
+.limits input { width: 4.5rem; }
+td form { display: inline-block; }
+@media (max-width: 40rem) { table { display: block; overflow-x: auto; } }

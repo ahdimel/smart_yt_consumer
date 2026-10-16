@@ -47,6 +47,12 @@ commits and pushes. Only works from inside a Claude Code session.
 
 `./vsum <url>` — one-off, bypasses the queue. Set `VSUM_FETCH_ONLY=1` for the bundle only.
 
+## Commands the owner runs by hand
+
+They go in `ops.local.txt` at the repo root, which is gitignored and exists only on the owner's
+Mac. When you add a setup, reset or recovery command the owner must run, append it there, with
+no secrets. The owner wants occasional command-line work, not a daily chore.
+
 ## Checking health
 
 `./status` — timer loaded, when it last ran, queue depth, whether each week's artifact matches
@@ -127,6 +133,7 @@ lib/index_page.py   out/*/meta.json -> the standing index page
 lib/page.html       the week page template
 lib/repair.py       rewrite one summary's front matter into canonical form
 lib/repair_all.py   find and repair every malformed summary in a week directory
+server/             the service for friends (docs/PROPOSAL.md), M1: see server/README.md
 prompts/            the two-pass summarization prompt
 queue/              one file per queued URL; drain deletes each after summarizing it
 out/<week>/         per-video summaries (.md), meta.json, index.html, .publish.log

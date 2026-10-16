@@ -4,3 +4,10 @@ __pycache__/
 .DS_Store
 out/.publish.log
 out/.index.log
+.venv/
+.work/
+*.db
+*.db-wal
+*.db-shm
+.pytest_cache/
+ops.local.txt

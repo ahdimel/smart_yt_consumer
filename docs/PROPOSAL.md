@@ -43,7 +43,7 @@ Design details, all accepted:
 | D6 | Mac sleeps normally; jobs wait, and the status page says so | No change to how the laptop is used |
 | D7 | Repo stays public. No friend data ever touches git, which tests enforce | — |
 | D8 | **Summarize exactly as production does today** (same prompt and flags, run from the repo root), with model and effort pinned explicitly (`--model opus --effort high`), plus `--no-session-persistence --output-format json` | Production silently inherited `opus` from user settings; pinning keeps the worker from depending on them. The engine itself is revisited in M5b |
-| D9 | Server stack: Python 3.12, FastAPI, SQLite on a Railway volume, Resend over plain HTTPS | Same shape as REI, minus Postgres and Alembic |
+| D9 | Server stack: Python 3.13 (pinned in `.python-version`), FastAPI, SQLite on a Railway volume, Resend over plain HTTPS | Same shape as REI, minus Postgres and Alembic. 3.12 was REI's version, not a requirement; 3.13 is what this Mac has (changed 2026-10-16) |
 
 ## 3. What changes, in one picture
 
@@ -319,7 +319,7 @@ until they pass.
 | # | Milestone | Done when |
 |---|---|---|
 | **M0** ✅ | **Measure and fix.** `week.py` XSS fix with tests (done). Overhead A/B per §10.1, run 2026-10-15; adoption shelved to M5b (`docs/m0-ab.md`) | Done: XSS tests green; A/B measured; `--no-session-persistence` verified |
-| **M1** | **Server core.** Data model, invites, cookie and bearer auth, URL validation, quotas, cache and coalescing, admin view, pause, worker protocol | §11 A–E, G tests green locally |
+| **M1** ✅ | **Server core.** Data model, invites, cookie and bearer auth, URL validation, quotas, cache and coalescing, admin view, pause, worker protocol | Done 2026-10-16: §11 A–E, G green locally (`server/README.md`) |
 | **M2** | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | §11 F tests green; one real video end-to-end against a local server |
 | **M3a** | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | `dig` shows every record; Railway serves HTTPS on the domain; Resend shows all records green; a test email lands in the inbox of Gmail and of one other provider, not spam |
 | **M3** | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Real email received from production; §11 H, I green |
