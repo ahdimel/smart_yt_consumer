@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# render-worker-plist — print the worker's LaunchAgent plist for this Mac.
+#   Fills ops/worker.plist.template with this repo's path and the tool paths found now. A
+#   login shell resolves claude, so a Node upgrade means re-running this and reloading the
+#   agent, not editing a hardcoded nvm path (§9). The install commands are in ops.local.txt.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+resolve(){ bash -lc "command -v $1" 2>/dev/null | tail -1; }
+CLAUDE="$(resolve claude)"; YTDLP="$(resolve yt-dlp)"
+[[ -x "$CLAUDE" ]] || { echo "claude not found by a login shell" >&2; exit 1; }
+[[ -x "$YTDLP" ]] || { echo "yt-dlp not found by a login shell" >&2; exit 1; }
+
+# claude's directory first, then yt-dlp's (Homebrew's, which also holds python3), then system
+P="$(dirname "$CLAUDE")"
+[[ ":$P:" == *":$(dirname "$YTDLP"):"* ]] || P="$P:$(dirname "$YTDLP")"
+P="$P:/usr/bin:/bin"
+PY="$(PATH="$P" command -v python3)" || { echo "no python3 on $P" >&2; exit 1; }
+
+sed -e "s|@REPO@|$ROOT|g" -e "s|@PATH@|$P|g" -e "s|@PYTHON@|$PY|g" \
+    -e "s|@LOGDIR@|$HOME/Library/Logs/smart_yt_consumer|g" "$ROOT/ops/worker.plist.template"

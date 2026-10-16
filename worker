@@ -1,0 +1,468 @@
+#!/usr/bin/env python3
+"""worker — claim jobs from the server, fetch, summarize, report (docs/PROPOSAL.md §5.3).
+
+A LaunchAgent runs it every 60 s (ops/worker.plist.template). One run first re-sends any report
+the server has not acknowledged, then claims jobs until the queue is empty or the run budget is
+spent. The server decides retries; the worker reports one outcome per claim and moves on.
+
+Everything about a job lives in .work/<job_id>/ and is removed on every exit path, except
+result.json, which stays only until the server acknowledges it (F11).
+
+The log (stderr) holds job IDs, error codes and token counts. Never a URL, a video ID or a
+title (F15): output from yt-dlp and claude is captured, not passed through, and exceptions are
+logged by type name only.
+
+Config: WORKER_TOKEN and SERVER_URL in ~/.config/smart_yt_consumer/env, mode 600.
+Stdlib only, Python 3.9+: launchd may hand it the system python3.
+"""
+import fcntl, http.client, json, os, re, shutil, signal, subprocess, sys, time
+import urllib.error, urllib.parse, urllib.request
+
+sys.dont_write_bytecode = True       # keep lib/__pycache__ out of a job's footprint
+ROOT = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(ROOT, 'lib'))
+import bundle  # noqa: E402
+
+ENV_FILE = os.environ.get('WORKER_ENV_FILE') or os.path.expanduser('~/.config/smart_yt_consumer/env')
+WORK = os.environ.get('WORKER_WORK_DIR') or os.path.join(ROOT, '.work')
+RUN_BUDGET = int(os.environ.get('WORKER_RUN_BUDGET', 30 * 60))
+SUMMARIZE_CAP = int(os.environ.get('SUMMARIZE_CAP', 600))    # drain's knob and default
+META_CAP, FETCH_CAP, HTTP_TIMEOUT = 120, 600, 30
+RESULT_TTL = 24 * 3600     # a lease is long dead by then; the server would only answer 409
+RESULT = 'result.json'
+
+# The engine is frozen until M5b (D8): drain's call, with model and effort pinned.
+# tests/test_worker.py checks these against drain and vsum so they cannot drift apart.
+DISALLOWED = 'Bash,Edit,Write,Read,Glob,Grep,NotebookEdit,Task,Artifact,WebFetch,WebSearch'
+# vsum's fetch flags. Its comments explain them: ask only for the subtitle tracks the flattener
+# reads ("en.*" also matches auto-translated tracks and trips the rate limiter), and keep
+# --ignore-errors so one failed track doesn't discard the info.json and comments.
+SUB_LANGS = 'en,en-US,en-GB,en-orig'
+EXTRACTOR_ARGS = 'youtube:comment_sort=top;max_comments=120,100,20,1'
+CANONICAL = re.compile(r'https://www\.youtube\.com/watch\?v=([A-Za-z0-9_-]{11})\Z')
+
+# yt-dlp's error text → error code; first match wins, so the specific ones come first.
+YTDLP_ERRORS = (
+    ('members_only', ("members-only", "join this channel", "channel's members", "members only")),
+    ('age_restricted', ("confirm your age", "age-restricted", "age restricted",
+                        "inappropriate for some users")),
+    ('live_or_upcoming', ("live event will begin", "premieres in", "is upcoming",
+                          "this live event")),
+    ('rate_limited', ("http error 429", "too many requests", "confirm you're not a bot",
+                      "confirm you’re not a bot", "rate-limit", "rate limit")),
+    ('unavailable', ("private video", "video unavailable", "has been removed",
+                     "no longer available", "not available in your country",
+                     "has been terminated", "is not available")),
+)
+
+
+def log(msg):
+    sys.stderr.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {msg}\n")
+    sys.stderr.flush()
+
+
+class Terminated(BaseException):
+    """SIGTERM/SIGINT/SIGHUP. A BaseException so no `except Exception` swallows it."""
+
+
+class JobFailed(Exception):
+    def __init__(self, code, usage=None, cost=0, model=None):
+        super().__init__(code)
+        self.code, self.usage, self.cost, self.model = code, usage or {}, cost or 0, model
+
+
+def on_signal(signum, _frame):
+    raise Terminated(signum)
+
+
+# ── subprocesses ─────────────────────────────────────────────────────────
+
+def run_capped(argv, cap, stdin=None, cwd=None):
+    """(returncode, stdout, stderr). The child gets its own process group, which is killed on
+    timeout and on any exit from here, including a signal to the worker. None on timeout."""
+    p = subprocess.Popen(argv, stdin=stdin or subprocess.DEVNULL, stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE, cwd=cwd, start_new_session=True)
+    try:
+        out, err = p.communicate(timeout=cap)
+        return p.returncode, out.decode('utf-8', 'replace'), err.decode('utf-8', 'replace')
+    except subprocess.TimeoutExpired:
+        return None
+    finally:
+        if p.poll() is None:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                pass
+            p.wait()
+
+
+def classify(stderr):
+    s = (stderr or '').lower()
+    for code, needles in YTDLP_ERRORS:
+        if any(n in s for n in needles):
+            return code
+    return 'fetch_failed'
+
+
+# ── one job ──────────────────────────────────────────────────────────────
+
+def check(info, max_minutes):
+    """The error code that makes this video not worth fetching further, or None (§5.3)."""
+    avail = info.get('availability')
+    if avail in ('subscriber_only', 'premium_only'):
+        return 'members_only'
+    if avail == 'needs_auth':
+        return 'age_restricted' if (info.get('age_limit') or 0) >= 18 else 'unavailable'
+    if avail == 'private':
+        return 'unavailable'
+    if info.get('is_live') or info.get('live_status') in ('is_live', 'is_upcoming', 'post_live'):
+        return 'live_or_upcoming'
+    if (info.get('duration') or 0) > max_minutes * 60:
+        return 'too_long'
+    langs = set(info.get('subtitles') or {}) | set(info.get('automatic_captions') or {})
+    if not langs & set(SUB_LANGS.split(',')):
+        return 'no_captions'
+    return None
+
+
+def fetch(url, max_minutes, d):
+    """Metadata first and classify; only then subtitles and comments. Returns the bundle path."""
+    cache = ['--cache-dir', os.path.join(d, 'yt-dlp-cache')]   # nothing outlives the job
+    r = run_capped(['yt-dlp', '--skip-download', '--no-warnings', '--dump-json', *cache,
+                    '--retries', '5', '--retry-sleep', '3', '--', url], META_CAP)
+    if r is None:
+        raise JobFailed('fetch_failed')
+    rc, out, err = r
+    try:
+        info = json.loads(out)
+    except ValueError:
+        info = None
+    if rc != 0 or not isinstance(info, dict):
+        raise JobFailed(classify(err))
+    code = check(info, max_minutes)
+    if code:
+        raise JobFailed(code)
+
+    stem = os.path.join(d, 'v')          # a fixed name, so no path carries the video ID
+    r = run_capped(['yt-dlp', '--skip-download', '--no-warnings', '--ignore-errors', *cache,
+                    '--sleep-requests', '0.7', '--retries', '5', '--retry-sleep', '3',
+                    '--write-auto-subs', '--write-subs', '--sub-langs', SUB_LANGS,
+                    '--sub-format', 'vtt', '--write-info-json', '--write-comments',
+                    '--extractor-args', EXTRACTOR_ARGS, '-o', stem, '--', url], FETCH_CAP)
+    if r is None:
+        raise JobFailed('fetch_failed')
+    err = r[2]
+    if not os.path.exists(stem + '.info.json') or not any(
+            f.startswith('v.') and f.endswith('.vtt') for f in os.listdir(d)):
+        raise JobFailed(classify(err))
+    try:
+        text, _, _ = bundle.build(stem)
+    except SystemExit:                   # flatten found no usable subtitles
+        raise JobFailed(classify(err))
+    path = os.path.join(d, 'bundle.txt')
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(text + '\n')
+    return path
+
+
+def model_of(result):
+    """The model that did the work: the one with the most output tokens in modelUsage."""
+    mu = result.get('modelUsage')
+    if not isinstance(mu, dict) or not mu:
+        return None
+    return max(mu, key=lambda k: (mu[k] or {}).get('outputTokens', 0)
+               if isinstance(mu[k], dict) else 0)
+
+
+def summarize(bundle_path, d):
+    """(md, usage, cost, model). Never trusts the exit code: the JSON decides (F7)."""
+    with open(os.path.join(ROOT, 'prompts', 'summarize.md'), encoding='utf-8') as f:
+        prompt = f.read().rstrip('\n')   # as drain's "$(cat ...)"
+    # The prompt MUST come before --disallowed-tools: the flag is variadic (see drain).
+    argv = ['claude', '-p', prompt, '--output-format', 'json', '--no-session-persistence',
+            '--model', 'opus', '--effort', 'high', '--disallowed-tools', DISALLOWED]
+    with open(bundle_path, 'rb') as stdin:
+        r = run_capped(argv, SUMMARIZE_CAP, stdin=stdin, cwd=ROOT)
+    if r is None:
+        raise JobFailed('summarize_failed')
+    try:
+        res = json.loads(r[1])
+    except ValueError:
+        res = None
+    if not isinstance(res, dict):
+        raise JobFailed('summarize_failed')
+    usage = res.get('usage') if isinstance(res.get('usage'), dict) else {}
+    cost, model = res.get('total_cost_usd') or 0, model_of(res)
+    text = res.get('result')
+    if res.get('is_error') or not isinstance(text, str) or not text.strip():
+        raise JobFailed('summarize_failed', usage, cost, model)
+
+    raw, clean = os.path.join(d, 'raw.md'), os.path.join(d, 'clean.md')
+    with open(raw, 'w', encoding='utf-8') as f:
+        f.write(text)
+    # lib/clean.py, as drain uses it: strip a code fence, check front matter, stamp `added`
+    r = run_capped([sys.executable, os.path.join(ROOT, 'lib', 'clean.py'), raw, clean], 30)
+    if r is None or r[0] != 0:
+        raise JobFailed('invalid_output', usage, cost, model)
+    with open(clean, encoding='utf-8') as f:
+        return f.read(), usage, cost, model
+
+
+def tokens(usage):
+    g = lambda k: usage.get(k) if isinstance(usage.get(k), int) else 0  # noqa: E731
+    return (f"in={g('input_tokens')} cache_write={g('cache_creation_input_tokens')} "
+            f"cache_read={g('cache_read_input_tokens')} out={g('output_tokens')}")
+
+
+def dollars(cost):
+    return f'${cost:.4f}' if isinstance(cost, (int, float)) else '$?'
+
+
+def process(job, d):
+    """The report for one claimed job: ('complete' | 'fail', body)."""
+    jid, stage = job['job_id'], 'fetch'
+    t0 = time.time()
+    try:
+        m = CANONICAL.match(job['url'])
+        if not m or m.group(1) != job['video_id']:
+            log(f'job {jid}: server sent a non-canonical URL; refusing it')
+            raise JobFailed('unavailable')
+        b = fetch(job['url'], job['max_minutes'], d)
+        stage = 'summarize'
+        md, usage, cost, model = summarize(b, d)
+    except JobFailed as e:
+        extra = f'; tokens {tokens(e.usage)}; {dollars(e.cost)}' if e.usage else ''
+        log(f'job {jid}: {e.code} after {time.time() - t0:.0f}s{extra}')
+        return 'fail', {'lease_id': job['lease_id'], 'error_code': e.code, 'usage': e.usage,
+                        'cost_usd': e.cost, 'model': e.model}
+    except Exception as e:  # a bug here must still release the job, not leave it leased
+        code = 'fetch_failed' if stage == 'fetch' else 'summarize_failed'
+        log(f'job {jid}: unexpected {type(e).__name__} during {stage}; reporting {code}')
+        return 'fail', {'lease_id': job['lease_id'], 'error_code': code, 'usage': {},
+                        'cost_usd': 0}
+    log(f'job {jid}: summarized in {time.time() - t0:.0f}s; '
+        f'tokens {tokens(usage)}; {dollars(cost)}')
+    return 'complete', {'lease_id': job['lease_id'], 'md': md, 'usage': usage,
+                        'cost_usd': cost, 'model': model}
+
+
+# ── the server ───────────────────────────────────────────────────────────
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):     # never carry the bearer somewhere else
+        return None
+
+
+class Server:
+    def __init__(self, base, token, version):
+        self.base, self.token, self.version = base.rstrip('/'), token, version
+        self.opener = urllib.request.build_opener(NoRedirect)
+        self.down_flag = os.path.join(WORK, '.unreachable')
+
+    def post(self, path, body):
+        """(status, parsed JSON or None). Status None: no HTTP answer at all."""
+        req = urllib.request.Request(
+            self.base + path, data=json.dumps(body).encode(), method='POST',
+            headers={'Authorization': 'Bearer ' + self.token,
+                     'Content-Type': 'application/json',
+                     'User-Agent': 'smart_yt_consumer-worker/' + self.version})
+        try:
+            with self.opener.open(req, timeout=HTTP_TIMEOUT) as r:
+                status, raw = r.status, r.read()
+        except urllib.error.HTTPError as e:
+            status, raw = e.code, e.read()
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as e:
+            reason = getattr(e, 'reason', e)
+            self.unreachable(type(reason).__name__ if isinstance(reason, BaseException)
+                             else type(e).__name__)
+            return None, None
+        self.reachable()
+        try:
+            return status, json.loads(raw) if raw else None
+        except ValueError:
+            return status, None
+
+    # Logged once per outage: launchd runs this every minute, and the Mac may sit offline.
+    def unreachable(self, why):
+        if not os.path.exists(self.down_flag):
+            log(f'server unreachable ({why}); quiet until it answers again')
+            open(self.down_flag, 'w').close()
+
+    def reachable(self):
+        if os.path.exists(self.down_flag):
+            os.remove(self.down_flag)
+            log('server reachable again')
+
+    def claim(self):
+        """A job dict, None when there is nothing to do, False when the run should stop."""
+        status, body = self.post('/worker/claim', {'version': self.version})
+        if status == 204:
+            return None
+        if status == 200 and isinstance(body, dict):
+            try:
+                return {'job_id': int(body['job_id']), 'lease_id': str(body['lease_id']),
+                        'attempt': body.get('attempt'), 'video_id': str(body['video_id']),
+                        'url': str(body['url']), 'max_minutes': int(body['max_minutes'])}
+            except (KeyError, TypeError, ValueError):
+                log('claim: malformed answer from server')
+                return False
+        if status == 401:
+            log('claim: 401, the server rejected WORKER_TOKEN')
+        elif status is not None:
+            log(f'claim: unexpected HTTP {status}')
+        return False
+
+
+def deliver(srv, d, kind, body):
+    """Send a report, keeping it in d/result.json until the server acknowledges it.
+    True if acknowledged (or moot), False if it must wait for the next run."""
+    jid = int(os.path.basename(d))
+    for f in os.listdir(d):              # nothing but the report survives a failed delivery
+        if f != RESULT:
+            p = os.path.join(d, f)
+            shutil.rmtree(p) if os.path.isdir(p) else os.remove(p)
+    tmp = os.path.join(d, RESULT + '.tmp')
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump({'kind': kind, 'body': body}, f)
+    os.replace(tmp, os.path.join(d, RESULT))
+
+    status, answer = srv.post(f'/worker/jobs/{jid}/{kind}', body)
+    if status == 200:
+        log(f'job {jid}: {kind} acknowledged')
+    elif status in (409, 404):
+        log(f'job {jid}: {kind} refused ({status}, lease gone); dropped')
+    elif kind == 'complete' and status in (413, 422):
+        log(f'job {jid}: complete refused ({status}); reporting invalid_output')
+        return deliver(srv, d, 'fail', {'lease_id': body['lease_id'],
+                                        'error_code': 'invalid_output',
+                                        'usage': body.get('usage') or {},
+                                        'cost_usd': body.get('cost_usd') or 0,
+                                        'model': body.get('model')})
+    elif kind == 'fail' and status == 422:
+        code = answer.get('error') if isinstance(answer, dict) else None
+        log(f'job {jid}: fail refused (422 {code}); dropped')
+    else:
+        if status is not None:
+            log(f'job {jid}: {kind} got HTTP {status}; kept for the next run')
+        return False
+    shutil.rmtree(d, ignore_errors=True)
+    return True
+
+
+def flush(srv):
+    """Re-send reports a previous run could not deliver. False if the server still can't
+    take them. Job dirs without a report are leftovers of a crash: remove them."""
+    ok = True
+    for name in sorted(os.listdir(WORK)):
+        d = os.path.join(WORK, name)
+        if not (name.isdigit() and os.path.isdir(d)):
+            continue
+        path = os.path.join(d, RESULT)
+        if not os.path.exists(path):
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        if not ok:
+            continue
+        if time.time() - os.path.getmtime(path) > RESULT_TTL:
+            log(f'job {name}: unacknowledged report older than a day; dropped')
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        try:
+            with open(path, encoding='utf-8') as f:
+                saved = json.load(f)
+            kind, body = saved['kind'], saved['body']
+        except (OSError, ValueError, KeyError, TypeError):
+            log(f'job {name}: unreadable saved report; dropped')
+            shutil.rmtree(d, ignore_errors=True)
+            continue
+        log(f'job {name}: re-sending saved {kind}')
+        ok = deliver(srv, d, kind, body)
+    return ok
+
+
+def run_job(srv, job):
+    """Process one claim. Returns (delivered, code)."""
+    d = os.path.join(WORK, str(job['job_id']))
+    shutil.rmtree(d, ignore_errors=True)
+    os.makedirs(d)
+    try:
+        log(f"job {job['job_id']}: claimed, attempt {job['attempt']}")
+        kind, body = process(job, d)
+        return deliver(srv, d, kind, body), body.get('error_code')
+    finally:                             # the trap: success, failure, timeout, signal
+        if not os.path.exists(os.path.join(d, RESULT)):
+            shutil.rmtree(d, ignore_errors=True)
+
+
+# ── main ─────────────────────────────────────────────────────────────────
+
+def config():
+    try:
+        st = os.stat(ENV_FILE)
+    except OSError:
+        log(f'no env file at {ENV_FILE}; see ops.local.txt')
+        return None
+    if st.st_mode & 0o077:
+        log(f'{ENV_FILE} is readable by others; chmod 600 it')
+        return None
+    vals = {}
+    with open(ENV_FILE, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('export '):
+                line = line[7:]
+            if '=' in line and not line.startswith('#'):
+                k, v = line.split('=', 1)
+                vals[k.strip()] = v.strip().strip('\'"')
+    token, server = vals.get('WORKER_TOKEN'), vals.get('SERVER_URL')
+    if not token or not server:
+        log('env file needs WORKER_TOKEN and SERVER_URL')
+        return None
+    u = urllib.parse.urlsplit(server)
+    if not (u.scheme == 'https' or
+            (u.scheme == 'http' and u.hostname in ('127.0.0.1', 'localhost', '::1'))):
+        log('SERVER_URL must be https (plain http only for localhost)')
+        return None
+    return server, token
+
+
+def version():
+    r = run_capped(['git', '-C', ROOT, 'rev-parse', '--short', 'HEAD'], 10)
+    return r[1].strip() if r and r[0] == 0 and r[1].strip() else 'unknown'
+
+
+def main():
+    os.makedirs(WORK, exist_ok=True)
+    lock = open(os.path.join(WORK, '.lock'), 'w')
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return 0                         # another run is active (F9)
+    for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(s, on_signal)
+    try:
+        cfg = config()
+        if cfg is None:
+            return 1
+        srv = Server(*cfg, version())
+        if not flush(srv):
+            return 0
+        deadline = time.time() + RUN_BUDGET
+        while time.time() < deadline:
+            job = srv.claim()
+            if not job:
+                break
+            delivered, code = run_job(srv, job)
+            if not delivered or code == 'rate_limited':   # back off until the next run
+                break
+        return 0
+    except Terminated as t:
+        log(f'terminated by signal {t.args[0]}')
+        return 128 + t.args[0]
+    except Exception as e:               # one line, no traceback: frames can hold content
+        log(f'worker error: {type(e).__name__}')
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

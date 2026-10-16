@@ -15,8 +15,9 @@ Build against it; don't reopen the decisions without asking.
 | M0: measure and fix | ✅ XSS fix in `lib/week.py` + `tests/test_render.py` (17 tests). The overhead A/B is in `docs/m0-ab.md`; adoption shelved to M5b |
 | M3a: domain and email | ✅ except the Railway CNAME (comes with M3). `ahdimel.com` on Namecheap; Proton for people; Resend on `notify.ahdimel.com` for apps; DMARC `quarantine`. See "DNS & email" in `CLAUDE.md` |
 | M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Local only. Choices the proposal left open are listed in `server/README.md` |
-| **M2: worker** | **Next.** Mac-side `worker` against the M1 protocol (`claim` → `complete`/`fail` with `lease_id`). Tests §11 F |
-| M3, M4, M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone** |
+| M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. One real video went end to end against a local server. **Not installed yet**: there is no server to poll until M3 |
+| **M3: delivery** | **Next.** Summary page, Resend email, Railway deploy, the CNAME, then the worker goes live. Brief below |
+| M4, M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone** |
 
 Things a new agent should know:
 - **The existing pipeline keeps running until the M6 cutover.** `drain`, the LaunchAgent, the
@@ -26,9 +27,10 @@ Things a new agent should know:
   `drain`. The worker adds only `--no-session-persistence --output-format json` (D8).
 - **The repo is public.** No friend data and no secrets, ever. Secrets live in Railway env vars,
   or in `~/.config/smart_yt_consumer/` (mode 600) on the Mac.
-- **Tests:** `python3 -m unittest discover -s tests` for `lib/`, which is stdlib-only. The
-  server: `server/.venv/bin/pytest -c server/pytest.ini server/tests` (venv setup in
-  `server/README.md`; Python 3.13, pinned in `.python-version`).
+- **Tests:** `python3 -m unittest discover -s tests` for `lib/` and the worker, which are
+  stdlib-only. With the server venv's Python instead, the same command also runs the worker
+  against the real server. The server: `server/.venv/bin/pytest -c server/pytest.ini
+  server/tests` (venv setup in `server/README.md`; Python 3.13, pinned in `.python-version`).
 - **Commands the owner runs by hand go in `ops.local.txt`** at the repo root. It is gitignored,
   so it exists only on the owner's Mac. Append the exact command whenever a milestone adds one
   (setup, reset, recovery), with no secrets in it. The owner accepts occasional command-line
@@ -36,54 +38,62 @@ Things a new agent should know:
 - **The owner wants infra steps walked through one at a time,** with an outside check after
   each step (see how M3a was done in `docs/PROPOSAL.md` §10.2).
 
-## M2 brief: the Mac worker
+## M3 brief: delivery
 
-Spec: proposal §5.3, error codes §5.5, tests §11 F. The server side is done and tested, so build
-against it rather than against the proposal's prose. Where they differ, the server is right.
+Spec: §5.1 (summary page, email), §8, §10.2 steps 3, 5 and 6, tests §11 H and I. Done when
+(§10): §11 H and I are green, and a real email from production reaches Gmail and one other
+provider. M2 adds to that: the worker on this Mac completes one real job against production.
 
-**Protocol** (see `server/protocol.py`; `server/smoke.sh` exercises it with curl). All calls go
-over HTTPS with `Authorization: Bearer $WORKER_TOKEN`.
-- `POST /worker/claim` with body `{"version": "<worker version>"}`. The answer is **204** when
-  there is nothing to do: queue empty, paused, or over the token ceiling. Otherwise **200**
-  `{job_id, lease_id, lease_until, attempt, video_id, url, max_minutes}`. `url` is already
-  canonical; pass exactly that to yt-dlp.
-- `POST /worker/jobs/{job_id}/complete` with body `{lease_id, md, usage, cost_usd, model}`.
-  `usage` is `claude -p`'s JSON `usage` object, passed through as is; the server maps
-  `cache_creation_input_tokens` and `cache_read_input_tokens` itself. Answers: **200** done,
-  including a replay of the same lease. **409**: the lease is dead (expired and re-leased, or
-  the job already failed), so drop the result. **422**: the front matter is invalid, the job
-  stays leased, so report `fail` with `invalid_output`. **413**: over 1 MB.
-- `POST /worker/jobs/{job_id}/fail` with body `{lease_id, error_code, usage, cost_usd}`.
-  `error_code` must be one of the keys in `server/codes.py`. The server decides retries and
-  backoff from the code. The worker never retries a job itself; it reports and moves on.
-- `md` must start with `---` front matter that has a `title:`. Strip a wrapping code fence
-  first (F8, as `lib/clean.py` does). The server does not strip it.
+**What exists.**
+- `server/` (M1). `mail.py` is an outbox with no transport: finished jobs sit at
+  `email_status='pending'`. `jobs.public_id` is the capability ID for `/s/<id>`. The choices
+  M1 made are listed in `server/README.md`.
+- `lib/week.py` renders summary markdown safely (`tests/test_render.py`, I4–I9), but only as a
+  whole week page through `lib/page.html`. `/s/<id>` needs a single-summary template derived
+  from it (§5.1, "Rendering").
+- `worker` (M2) runs against any `SERVER_URL`. Installing it is `ops.local.txt` §5–6.
 
 **Things to get right:**
-- **The summarize call is D8, not §11 F13's `--tools ""`.** F13 was written when the lean flags
-  were planned. M0 shelved them (`docs/m0-ab.md`). Use `drain`'s `--disallowed-tools` list plus
-  `--model opus --effort high --no-session-persistence --output-format json`, prompt first, run
-  from the repo root, bundle on stdin, capped at 600 s. Change F13 to assert that.
-- **Fetch in two steps.** `vsum` downloads metadata, subtitles and comments in one yt-dlp call.
-  §5.3 wants duration, live status and captions checked *before* spending more. So: metadata
-  first (`--skip-download --dump-json` or `--write-info-json`), then classify `too_long`,
-  `live_or_upcoming`, `no_captions` and so on; only then fetch subtitles and comments and run
-  `lib/bundle.py`. Reuse `vsum`'s subtitle language list and `--extractor-args`. The comments
-  there explain hard-won rate-limit fixes.
-- **Everything per job goes in `.work/<job_id>/`** (gitignored), including `VSUM_CACHE`. A
-  `trap` removes it on every exit path. `result.json` survives only until `complete` is
-  acknowledged (F11). Don't write to `.cache/` or `out/`; `drain` still owns those.
-- **The log holds job IDs, codes and token counts only.** No URL, video ID or title (F15).
-- **Don't disturb `drain`.** It stays live until M6, and both may run at once. Give the worker
-  LaunchAgent its own label (`com.ahdimel.smartytconsumer.worker`); its plist template goes in
-  `ops/worker.plist.template` (§9). Resolve `claude` at install time instead of hardcoding the
-  nvm path (§9).
-- **Secrets:** `WORKER_TOKEN` and the server URL go in `~/.config/smart_yt_consumer/env`, mode
-  600 (§5.3). Generate the token on the Mac and have the owner do it via `read -rs`-style steps.
-  Add the commands to `ops.local.txt`.
-- **Done when:** §11 F green with stub `yt-dlp` and `claude` first on `PATH`, and one real video
-  end to end against a local server (`server/smoke.sh` shows how to start one). There is no
-  Railway yet; that is M3.
+- **Summary page.** It renders on the server from `summaries.md`, so a template change applies
+  to old summaries. Send the headers from I1. The CSP forbids inline script, so "Save as PDF"
+  (`window.print()`) needs a static JS file under `server/static/`. Unknown IDs return 404.
+  Once `expires_at` passes, the page returns 410 and shows no title (I11). The Railway image
+  must include `lib/`.
+- **Email.** Use Resend's HTTP API over plain HTTPS (D9), sending as
+  `desloppify@notify.ahdimel.com` with `Reply-To: hello@ahdimel.com`. The body is the title,
+  the link and "available until <date>", and nothing else (D1, H7). Build the retry loop with
+  backoff and the reset of stale `sending` rows that `server/README.md` says M3 owes. On a 4xx,
+  mark the email failed and don't retry (H5).
+- **Railway.** Create a new service with a volume, and set `DB_PATH` on the volume. Env vars:
+  `WORKER_TOKEN`, `RESEND_API_KEY`, `PUBLIC_ORIGIN=https://desloppify.ahdimel.com` and
+  `CLIENT_IP_HEADER`. Find out which header Railway's edge actually sets rather than guessing,
+  because clients can forge any other. Keep uvicorn's `--no-access-log`. Work out how the
+  owner runs `server.cli invite` against the production DB, and fill in `ops.local.txt` §2.
+- **Domain and key.** Follow §10.2 step 3: the CNAME plus Railway's verify TXT, checked against
+  the three resolvers named in `CLAUDE.md`. Then step 5: a send-only Resend key scoped to
+  `notify.`, which the owner puts straight into Railway and which never touches the Mac's disk.
+  Walk the owner through both one step at a time, with a check after each.
+- **The worker goes live.** Do this once `https://desloppify.ahdimel.com/healthz` answers. The
+  owner creates `~/.config/smart_yt_consumer/env` (`ops.local.txt` §5), which generates the
+  token on the Mac. The same token then has to reach Railway's `WORKER_TOKEN` without being
+  echoed or passing through the clipboard: design that step. Then install the LaunchAgent
+  (§6). **Ask before loading it.** `drain` keeps running alongside until M6.
+- **Railway's HTTP logs record paths.** `/s/<public_id>` is a capability URL, like `/u/<token>`.
+  Note it for M5's log audit, as `server/README.md` already does for `/u/`.
+- **Don't invite anyone.** M5b gates that.
+
+**What M2 learned, for whoever touches the worker:**
+- An idle worker logs nothing. To see that the timer fires, read `runs` and `last exit code`
+  in `launchctl print gui/$(id -u)/com.ahdimel.smartytconsumer.worker`.
+- An unreachable server is logged once per outage (the flag file is `.work/.unreachable`), not
+  once a minute. After `rate_limited`, or after a report the server didn't acknowledge, the run
+  stops and the next one starts 60 s later.
+- The real run: a 3-minute video took 108 s and used 22.6k cache-write, 4.9k cache-read and
+  5.3k output tokens, $0.37 API-equivalent. The summary closely matched drain's for the same
+  video.
+- `drain`'s `--disallowed-tools` list and `vsum`'s `--sub-langs` and `--extractor-args` are
+  copied into `worker`. A test fails if they drift apart. When M6 retires `drain`, move the
+  canonical copy into `worker`.
 
 ## The existing pipeline (state as of 2026-10-07, still running)
 

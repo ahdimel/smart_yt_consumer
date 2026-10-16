@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The worker's LaunchAgent (docs/PROPOSAL.md §5.3, §9). Don't copy this file by hand:
+     ops/render-worker-plist fills in the paths for this Mac. It runs alongside drain's
+     LaunchAgent until M6, under its own label. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ahdimel.smartytconsumer.worker</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PYTHON@</string>
+    <string>@REPO@/worker</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@REPO@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@PATH@</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>60</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>@LOGDIR@/worker.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOGDIR@/worker.log</string>
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

@@ -320,7 +320,7 @@ until they pass.
 |---|---|---|
 | **M0** ✅ | **Measure and fix.** `week.py` XSS fix with tests (done). Overhead A/B per §10.1, run 2026-10-15; adoption shelved to M5b (`docs/m0-ab.md`) | Done: XSS tests green; A/B measured; `--no-session-persistence` verified |
 | **M1** ✅ | **Server core.** Data model, invites, cookie and bearer auth, URL validation, quotas, cache and coalescing, admin view, pause, worker protocol | Done 2026-10-16: §11 A–E, G green locally (`server/README.md`) |
-| **M2** | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | §11 F tests green; one real video end-to-end against a local server |
+| **M2** ✅ | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | Done 2026-10-16: §11 F green (`tests/test_worker.py`, `tests/test_worker_server.py`); one real video end-to-end against a local server. The LaunchAgent is installed in M3, once there is a server to poll |
 | **M3a** | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | `dig` shows every record; Railway serves HTTPS on the domain; Resend shows all records green; a test email lands in the inbox of Gmail and of one other provider, not spam |
 | **M3** | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Real email received from production; §11 H, I green |
 | **M4** | **Intake modalities and intro page.** PWA manifest and share target, bookmarklet page, iOS Shortcut, `/welcome` and `/about` (§5.4), with the copy rewritten by the owner | Manually verified on one Android, one iPhone, one desktop; §11 J, M green |
@@ -595,7 +595,7 @@ Reject with `invalid_url`:
 | F10 | Server unreachable on `claim` | Exits 0, logs one line, no traceback |
 | F11 | Server 5xx on `complete` | Result kept in `.work/<job>/result.json`, retried next run, deleted after the ack |
 | F12 | yt-dlp is invoked only with the canonical URL; argv never contains raw user input | Stub records its argv |
-| F13 | `claude` argv contains `--no-session-persistence`, `--tools ""`, `--output-format json`, and the prompt before any variadic flag |  |
+| F13 | `claude` argv is D8: the prompt right after `-p`, then `--output-format json --no-session-persistence --model opus --effort high`, and `--disallowed-tools` with `drain`'s list last; no `--tools`; cwd is the repo root | Changed in M2: the `--tools ""` written here first was one of M0's lean flags, shelved to M5b (`docs/m0-ab.md`) |
 | F14 | After a job, `git status --porcelain` in the repo is empty |  |
 | F15 | After a job, the worker log contains the job ID and does **not** contain the canary title, the video ID or `youtube.com` |  |
 
