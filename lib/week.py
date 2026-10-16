@@ -66,16 +66,27 @@ def parse(path):
     return meta, body.strip()
 
 
+SAFE_URL = re.compile(r'https?://[^\s<>]+$', re.I)
+
+
+def link(m):
+    """[text](url) -> <a>, for http(s) only. The text is model output over untrusted input
+    (transcripts, comments): javascript:, data: and anything odd render as plain text."""
+    text, url = m.group(1), m.group(2).strip()
+    return f'<a href="{url}">{text}</a>' if SAFE_URL.match(url) else text
+
+
 def inline(s):
-    """Inline markdown -> HTML. Escapes first, so no raw HTML passes through."""
-    s = html.escape(s, quote=False)
+    """Inline markdown -> HTML. Escapes first, quotes included, so no raw HTML passes
+    through and nothing can break out of an attribute."""
+    s = html.escape(s)
     # `code` -- a bare timestamp becomes a jump chip
     def code(m):
         t = m.group(1)
         cls = 'ts' if TIME.match(t) else 'mono'
         return f'<span class="{cls}">{t}</span>'
     s = re.sub(r'`([^`]+)`', code, s)
-    s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', s)
+    s = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', link, s)
     s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)   # .+? so nested *em* survives
     s = re.sub(r'(?<!\*)\*([^*]+)\*(?!\*)', r'<em>\1</em>', s)
     return s
