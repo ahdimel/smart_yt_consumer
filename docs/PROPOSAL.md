@@ -25,7 +25,7 @@ Settled with the owner on 2026-10-15:
 | Billing | Owner's subscription via `claude -p` |
 | Privacy | "Out of sight": content never in logs, git, admin views or transcript stores; purged after retention |
 | Domain | **`ahdimel.com`**, bought 2026-10-15 on Namecheap with WHOIS privacy and auto-renew. A personal domain shared by lightweight projects, each on its own subdomain. This app: **`desloppify.ahdimel.com`** |
-| Email | Resend, with the root `ahdimel.com` verified once and reused by every project. This app sends from `desloppify@ahdimel.com` |
+| Email | App mail: Resend from the subdomain **`notify.ahdimel.com`**, shared by every project; this app sends as `desloppify@notify.ahdimel.com`. People mail: `hello@ahdimel.com` on Proton Mail Plus. Set up and verified 2026-10-16 (§10.2) |
 | Scale & limits | ≤10 friends. Per user 5/day, 20/week, videos ≤ 3h. Global 40/day. All per-user adjustable |
 | Owner's digest | Owner becomes a user like everyone else. Weekly artifact digest and git queue are retired |
 | Extras | Status + history page; shared summary cache; share-sheet intake on every platform |
@@ -144,7 +144,8 @@ and a single-summary template derived from `lib/page.html`. Template changes the
 to old summaries without re-running anything.
 
 **Email** is sent by the server after `complete` or a final `fail`, via Resend's HTTP API from
-`desloppify@ahdimel.com`. HTML plus a plain-text part. Content: the video title, a "Read the
+`desloppify@notify.ahdimel.com` with `Reply-To: hello@ahdimel.com`, so a friend's reply lands in
+the owner's Proton inbox instead of bouncing off a send-only address. HTML plus a plain-text part. Content: the video title, a "Read the
 summary" link, and "available until <date>". No verdict and no prose (D1). Failure emails carry
 the title and the plain-language reason. Failed sends are retried by a background loop; a
 summary never sends two emails.
@@ -217,7 +218,8 @@ their own voice**, because "trust me" only works in the voice of the person aski
 5. **Please don't share your link.** The link *is* your identity: anyone holding it uses your
    quota and gets summaries sent to your email. If you want a friend added, ask me and they'll
    get their own. If a link leaks, I revoke it and send you a new one, no questions asked.
-6. **How to use it.** The setup block for their platform (paste box, Android install, iOS
+6. **How to reach me.** `hello@ahdimel.com`. Replying to any summary email also lands there.
+7. **How to use it.** The setup block for their platform (paste box, Android install, iOS
    Shortcut, bookmarklet). On `/welcome` this section comes first in the visual order.
 
 ### 5.5 Error codes
@@ -383,62 +385,57 @@ clicks. Every step ends with a check Claude runs.
    it. Railway limits: 2 custom domains per service on Hobby, 1 on Trial. This is a new service,
    so REI's domain doesn't count against it. Check: `dig +short CNAME desloppify.ahdimel.com`,
    then `curl -I https://desloppify.ahdimel.com/healthz` once the certificate is issued.
-4. **Resend domain.** Can be done now, independent of Railway. Add the **root** `ahdimel.com` in
-   Resend (the same account as REI), so every future project can send as `<name>@ahdimel.com`.
-   Resend's changelog says the free tier now allows 3 domains, but some guides still say 1.
-   If the dashboard refuses a second domain, the options are Pro ($20/mo) or a separate free
-   Resend account for personal projects. Then:
-   - add TXT `resend._domainkey` (DKIM) and TXT `send` (SPF);
-   - add MX `send` **under Mail Settings → Custom MX**, not in the main record list;
-   - set the host to `send`, not `@` (both of these are REI gotchas);
-   - add `TXT _dmarc → v=DMARC1; p=none;`, which REI lacks and Gmail increasingly expects.
+4. ✅ **Email: Resend for apps on `notify.`, Proton Mail for people on the root (done
+   2026-10-16).**
 
-   Check: `dig` each record; all records green in Resend.
+   - **People mail:** `hello@ahdimel.com` and `desloppify@ahdimel.com` are real mailboxes on Proton
+     Mail Plus ($3.99/mo billed annually; 1 custom domain, 10 addresses). Mail stored there is
+     zero-access encrypted, and there's no forwarding hop. Chosen over ImprovMX → Gmail. It's a
+     separate inbox from Gmail. No catch-all: it attracts spam, and named addresses suffice.
+   - **App mail:** Resend sends from **`notify.ahdimel.com`**, shared by every project, e.g.
+     `desloppify@notify.ahdimel.com`.
+   - **Why not the root (found 2026-10-16):** Resend mail from `@ahdimel.com` addressed to a
+     Proton-hosted `@ahdimel.com` mailbox bounced with `554 5.7.1 rejected by rspamd filter`.
+     Proton treats its own hosted domain arriving from outside as spoofing. The same message
+     scored 9/10 at mail-tester, with SPF, DKIM and DMARC all passing, so other providers were
+     never affected. From the subdomain it was delivered in 5 s. The subdomain also keeps app
+     reputation apart from personal mail, as Resend recommends.
 
-   **Personal mailbox `hello@ahdimel.com` (decided 2026-10-15): ImprovMX forwarding into the
-   owner's Gmail, replies sent through Resend. Free.** Done in the same sitting as the Resend
-   records, because both change Namecheap's mail settings. Namecheap's own forwarding can't be
-   used: its "Email Forwarding" mode owns the root MX, while "Custom MX", which Resend's
-   `send` MX requires, switches it off.
+   Records in place (Namecheap, `ahdimel.com`):
 
-   | Where | Record / setting | Value |
-   |---|---|---|
-   | Namecheap → Mail Settings → **Custom MX** | MX `@` | `mx1.improvmx.com` (10), `mx2.improvmx.com` (20) |
-   | Namecheap → Mail Settings → Custom MX | MX `send` | Resend's value; use a priority not already in use (Namecheap gotcha) |
-   | Namecheap → Advanced DNS | TXT `@` | `v=spf1 include:spf.improvmx.com ~all`. This replaces Namecheap's forwarding SPF; there must be only one root SPF |
-   | Namecheap → Advanced DNS | TXT `send`, TXT `resend._domainkey` | Resend's SPF and DKIM values |
-   | Namecheap → Advanced DNS | TXT `_dmarc` | `v=DMARC1; p=none;` at first. Move to `p=quarantine` after 2 weeks of clean PASS results, so nobody can send scam mail as `@ahdimel.com` |
-   | ImprovMX | Domain `ahdimel.com`, alias | `hello` → the owner's Gmail |
-   | Gmail → Filters | `to:(hello@ahdimel.com)` | **Never send it to Spam**, plus a label. This is ImprovMX's own fix for Gmail occasionally spam-filing forwarded mail |
-   | Gmail → Accounts → Send mail as | `hello@ahdimel.com` via `smtp.resend.com:465` (SSL), user `resend`, password = a dedicated Resend API key | Separate from the app's key. Also set "Reply from the same address the message was sent to" |
+   | Section | Type | Host | Value | For |
+   |---|---|---|---|---|
+   | Mail Settings → **Custom MX** | MX | `@` | `mail.protonmail.ch` (10), `mailsec.protonmail.ch` (20) | Proton receiving |
+   | Host Records | TXT | `@` | `v=spf1 include:_spf.protonmail.ch ~all`. The only root SPF | Proton sending |
+   | Host Records | TXT | `@` | `protonmail-verification=543cbe…`. Keep: Proton re-checks it | Proton ownership |
+   | Host Records | CNAME | `protonmail._domainkey`, `protonmail2._domainkey`, `protonmail3._domainkey` | `protonmailN.domainkey.dedfwkl….domains.proton.ch.` | Proton DKIM (2 and 3 are rotation standbys) |
+   | Host Records | TXT | `resend._domainkey.notify` | Resend's DKIM key for `notify.` | Resend DKIM |
+   | Host Records | CNAME | `send.notify`, `rsend.notify` | `send.forge.rmta.net`, `rsend.forge.rmta.net` | Resend SPF / bounces (no MX needed) |
+   | Host Records | TXT | `_dmarc` | `v=DMARC1; p=quarantine;`. Covers `notify.` too | Anti-spoofing for both |
 
-   Why this stays out of spam:
-   - **Incoming:** ImprovMX rewrites the sender (SRS), so forwarding doesn't break SPF, and the
-     Gmail filter catches the rest.
-   - **Outgoing:** replies leave through Resend signed with `ahdimel.com`'s own DKIM key, and
-     SPF passes on `send.ahdimel.com`. DMARC therefore aligns, and recipients see a fully
-     authenticated message with no "via gmail.com" banner.
-   - **What remains:** the domain is brand new and has no reputation yet, so the first emails to
-     new people may land in spam. Low, normal volume builds reputation quickly.
+   Verified:
+   - Proton → Gmail: SPF, DKIM (`d=ahdimel.com`) and DMARC all PASS; mail-tester 10/10.
+   - Resend `notify.` → mail-tester: 9/10. The point lost was the not-yet-live
+     `desloppify.ahdimel.com` link.
+   - Resend `notify.` → Proton `hello@`: delivered to the inbox, and Reply-To populates `hello@`.
 
-   Shared limits: ImprovMX free forwards 500/day. Resend free sends 100/day and 3,000/month,
-   shared between `hello@` replies and the app's notifications (≤40/day). That's ample.
+   Gotchas:
+   - Namecheap's "Email Forwarding" mode owns the root MX, so use Custom MX.
+   - Enter host names short (`send.notify`, not `send.notify.ahdimel.com`).
+   - Several TXT records on `@` are fine; several *SPF* records are not.
+   - Run `dig` loops under `bash -c`: zsh doesn't word-split `$q`, so `dig +short $q` silently
+     looks up the literal name "TXT ahdimel.com".
+   - Never ask the owner to `pbpaste` a secret in the same command they copy from chat: the
+     command overwrites the clipboard. Use `read -rs` to prompt for it instead.
 
-   Check:
-   - `dig` every record.
-   - Gmail's "Send mail as" verification code arrives at `hello@`, which proves inbound works.
-   - Send a message as `hello@` to mail-tester.com: score ≥ 9/10, with SPF, DKIM and DMARC PASS.
-   - Send one each way with an outside account (e.g. Outlook), and confirm it lands in the
-     inbox on both sides.
-5. **API key.** Create a Resend key scoped to "sending access" for `ahdimel.com` only, and set it
-   as `RESEND_API_KEY` in Railway. Use one key per project, so revoking one doesn't break the
-   others. It never goes in the repo or on the Mac.
-6. **Deliverability check.** Send a test email to the owner's Gmail and one other provider. Open
-   "Show original" and confirm SPF, DKIM and DMARC all say PASS. A new domain has no sending
-   reputation, so the first emails may land in spam. The welcome email asks friends to add the
-   sender to their contacts.
-7. **Record it.** A "DNS & Domain" section in this repo's `CLAUDE.md`, in the same shape as
-   REI's.
+5. **API key.** Create a Resend key scoped to "sending access" for `notify.ahdimel.com` only, and set it
+   as `RESEND_API_KEY` in Railway, during M3, when the service exists. Use one key per project,
+   so revoking one doesn't break the others. It never goes in the repo or on the Mac.
+6. **Deliverability check (in M3, from production).** The app's first real email goes to the
+   owner's Gmail and one other provider. Open "Show original" and confirm SPF, DKIM and DMARC
+   all say PASS. A new domain has no sending reputation, so the first emails may land in spam.
+   The welcome email asks friends to add the sender to their contacts.
+7. ✅ **Record it.** A "DNS & email" section in this repo's `CLAUDE.md` (2026-10-16).
 
 ### 10.3 M5b brief: summaries that stand on their own
 

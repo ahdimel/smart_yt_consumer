@@ -83,6 +83,35 @@ said "artifact published" both times, because drain trusted the exit code and se
 /dev/null. `drain` and `publish` now require the model to echo the URL back, and a headless
 session without the Artifact tool is expected to refuse rather than echo one.
 
+## DNS & email (`ahdimel.com`)
+
+The owner's personal domain, shared by lightweight projects. Registrar and DNS: **Namecheap**
+(WHOIS privacy and auto-renew on). Full record table and history: `docs/PROPOSAL.md` §10.2.
+
+- **This app** will live at `desloppify.ahdimel.com`: a CNAME to Railway, added in M3. Not live
+  yet.
+- **People mail:** Proton Mail Plus hosts the root. `hello@ahdimel.com` is the public contact,
+  and `desloppify@ahdimel.com` also exists. No catch-all.
+- **App mail:** Resend, verified on **`notify.ahdimel.com` only**. Apps send as
+  `<project>@notify.ahdimel.com`, with `Reply-To: hello@ahdimel.com`.
+- **DMARC** is `p=quarantine` on the root and covers `notify.`. Both paths were verified PASS on
+  2026-10-16.
+
+Do not:
+- **Re-add the root `ahdimel.com` to Resend.** Proton's rspamd rejects Resend mail
+  "from" `@ahdimel.com` sent to its own `@ahdimel.com` mailboxes (`554 5.7.1`). The subdomain is
+  the fix, not a preference.
+- **Add a second SPF record on `@`.** There must be exactly one: Proton's. Resend's SPF lives on
+  `send.notify` and needs nothing at the root.
+- **Switch Namecheap's Mail Settings away from Custom MX.** "Email Forwarding" replaces
+  Proton's MX records.
+
+When checking records, query `8.8.8.8`, `1.1.1.1` and `dns1.registrar-servers.com`, and run
+loops under `bash -c`: in zsh, `dig +short $q` with `q="TXT host"` looks up the literal name
+and returns nothing. Secrets the owner must hand over (API keys) go to
+`~/.config/smart_yt_consumer/`, mode 600, via `read -rs`. Never use `pbpaste` in a command they
+copy from chat, because copying the command replaces the secret on the clipboard.
+
 ## Layout
 
 ```
