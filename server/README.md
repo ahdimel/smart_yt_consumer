@@ -49,7 +49,9 @@ ssh`, are in `ops.local.txt` on the owner's Mac.
 `CLIENT_IP_HEADER`: Railway's docs name `X-Real-IP` as the client IP, but don't say whether a
 client's own copy is replaced. The check: send ten bad tokens with one forged `X-Real-IP`, then
 one with a different forged value. If that one gets 429, the edge overwrote the header.
-(Result: to be recorded on first deploy.)
+**Checked against production on 2026-10-16:** ten 404s, then 429 for the different forged value
+and 429 with no header at all. Every request was keyed on the real client IP, so
+`CLIENT_IP_HEADER=X-Real-IP` is safe.
 
 ## Layout
 

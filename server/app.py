@@ -223,7 +223,7 @@ def create_app(settings=None, clock=None, mailer=None):
 
     # ── public ────────────────────────────────────────────────────────────
 
-    @app.get('/healthz')
+    @app.api_route('/healthz', methods=['GET', 'HEAD'])     # HEAD: curl -I, uptime checks
     def healthz():
         return {'ok': True}
 

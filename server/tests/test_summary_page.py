@@ -185,3 +185,9 @@ def test_static_files(env):
     assert env.client.get('/static/app.css').status_code == 200
     for name in ('nope.css', '..%2Fapp.py', 'summary.html'):
         assert env.client.get(f'/static/{name}').status_code == 404
+
+
+def test_healthz_answers_get_and_head(env):
+    """M3's done check is `curl -I https://desloppify.ahdimel.com/healthz`, a HEAD request."""
+    assert env.client.get('/healthz').json() == {'ok': True}
+    assert env.client.head('/healthz').status_code == 200
