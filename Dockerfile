@@ -1,6 +1,6 @@
-# The Railway image for server/ (docs/PROPOSAL.md §5.1). Built by Railway from railway.json;
-# deploys go out with `railway up` from a clean main (ops.local.txt). Only the server and the
-# one renderer module it reuses are copied: nothing from out/, queue/ or the worker.
+# The Railway image for server/ (docs/PROPOSAL.md §5.1). Railway builds it because it sits at
+# the repo root; deploys go out with `railway up` from a clean main (ops.local.txt). Only the
+# server and the one renderer module it reuses are copied: nothing from out/, queue/ or worker.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1

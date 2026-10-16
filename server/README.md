@@ -37,8 +37,11 @@ worker. It uses a throwaway database. M2 can copy the request and response shape
 
 ## Production (Railway)
 
-`Dockerfile` and `railway.json` at the repo root. The image holds `server/` and `lib/week.py`,
-nothing else. One replica, with a volume mounted at `/data` and `DB_PATH=/data/server.db`.
+`Dockerfile` at the repo root; Railway builds it because it is there. The image holds `server/`
+and `lib/week.py`, nothing else. One replica, with a volume mounted at `/data` and
+`DB_PATH=/data/server.db`. The healthcheck path, `/healthz`, is set in the service's settings:
+Railway no longer lets new services use `railway.json`, and its replacement
+(`.railway/railway.ts`) wasn't worth adopting for one setting.
 Deploys are `railway up` from a clean `main`, never on push: drain pushes to `main` every 15
 minutes. The exact commands, including running `server.cli` inside the service with `railway
 ssh`, are in `ops.local.txt` on the owner's Mac.
