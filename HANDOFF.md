@@ -1,10 +1,36 @@
 # Handoff
 
-State of the project as of 2026-10-07, for whoever picks it up next. `README.md` explains the
+State of the project as of 2026-10-16, for whoever picks it up next. `README.md` explains the
 method and setup; `CLAUDE.md` holds the working rules for agents. This file covers what is true
 right now, what is fragile, and what is tied to one person's machine.
 
-## Current state
+## Now: turning this into a service for friends
+
+The plan is **`docs/PROPOSAL.md`**: decisions, architecture, milestones (§10) and the validation
+test matrix (§11). The owner settled every decision in it through an interview on 2026-10-15/16.
+Build against it; don't reopen the decisions without asking.
+
+| Milestone | State |
+|---|---|
+| M0: measure and fix | ✅ XSS fix in `lib/week.py` + `tests/test_render.py` (17 tests). The overhead A/B is in `docs/m0-ab.md`; adoption shelved to M5b |
+| M3a: domain and email | ✅ except the Railway CNAME (comes with M3). `ahdimel.com` on Namecheap; Proton for people; Resend on `notify.ahdimel.com` for apps; DMARC `quarantine`. See "DNS & email" in `CLAUDE.md` |
+| **M1: server core** | **Next.** `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. Tests §11 A–E and G, written with the code. Local only; no Railway until M3 |
+| M2, M3, M4, M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone** |
+
+Things a new agent should know:
+- **The existing pipeline keeps running until the M6 cutover.** `drain`, the LaunchAgent, the
+  weekly digest and the git queue below are still live. Don't break them while building
+  `server/` and `worker`.
+- **The summarization engine is frozen until M5b:** same prompt, Opus, high effort, flags as in
+  `drain`. The worker adds only `--no-session-persistence --output-format json` (D8).
+- **The repo is public.** No friend data and no secrets, ever. Secrets live in Railway env vars,
+  or in `~/.config/smart_yt_consumer/` (mode 600) on the Mac.
+- **Tests:** `python3 -m unittest discover -s tests` for `lib/`, which is stdlib-only. The
+  server gets its own venv and pytest, per proposal §11.
+- **The owner wants infra steps walked through one at a time,** with an outside check after
+  each step (see how M3a was done in `docs/PROPOSAL.md` §10.2).
+
+## The existing pipeline (state as of 2026-10-07, still running)
 
 - **Working and unattended:** queue → fetch → summarize → week page → commit → push. The
   LaunchAgent has run every 15 minutes while the Mac is awake since at least 2026-09-26, and
