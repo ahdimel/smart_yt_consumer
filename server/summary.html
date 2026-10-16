@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="stylesheet" href="/static/summary.css">
+<script src="/static/summary.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <p class="until">Available until {{UNTIL}}</p>
+    <button type="button" id="save-pdf" class="save" hidden>Save as PDF</button>
+  </header>
+
+  {{ARTICLE}}
+
+  <p class="foot">
+    Manual captions preferred over auto; top comments by likes, creator and low-signal excluded.<br>
+    Fluff measured from timestamped ad, teaser, restatement and B-roll spans.
+  </p>
+</div>
+</body>
+</html>

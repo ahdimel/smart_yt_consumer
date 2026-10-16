@@ -8,21 +8,25 @@ Each route accepts exactly one kind of credential (§8):
   user bearer       /api/requests with an Authorization header (iOS Shortcut)
   admin cookie      /admin*
   worker bearer     /worker/*
+  capability        /s/<public_id>: the unguessable ID is the credential (D3)
 """
+import asyncio
 import json
 import logging
+import sys
 import time
-from contextlib import closing
+from contextlib import asynccontextmanager, closing
 from pathlib import Path
 from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
-from . import admin, auth, codes, db, intake, mail, pages, protocol, urls, users
-from .config import Settings
+from . import admin, auth, codes, db, intake, mail, pages, protocol, render, urls, users
+from .config import RETENTION, Settings
 
 log = logging.getLogger('server')
 
@@ -32,6 +36,8 @@ INTAKE_LIMIT = 2 * 1024
 COMPLETE_LIMIT = 1024 * 1024
 SMALL_LIMIT = 16 * 1024
 STATIC = Path(__file__).with_name('static')
+STATIC_TYPES = {'app.css': 'text/css', 'summary.css': 'text/css',
+                'summary.js': 'text/javascript'}
 # What a browser form submission shows on the home page, keyed by the ?m= code.
 MESSAGES = {
     'queued': 'Queued. You’ll get an email when it’s ready.',
@@ -106,22 +112,48 @@ def job_view(job):
 
 
 def create_app(settings=None, clock=None, mailer=None):
+    """`mailer` defaults to Resend when RESEND_API_KEY is set, else none (mail waits)."""
     if not log.handlers:
         # Job IDs, user IDs and codes only; never a URL, video ID, title or token.
-        h = logging.StreamHandler()
+        h = logging.StreamHandler(sys.stdout)       # Railway shows stderr as errors
         h.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
         log.addHandler(h)
         log.setLevel(logging.INFO)
     settings = settings or Settings.from_env()
     clock = clock or (lambda: int(time.time()))
+    mailer = mailer if mailer is not None else mail.from_settings(settings)
     db.init(settings.db_path)
     limiter = auth.MissLimiter(clock)
 
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.settings, app.state.clock, app.state.limiter = settings, clock, limiter
-
     def connect():
         return closing(db.connect(settings.db_path))
+
+    def deliver(origin_):
+        """Send whatever email is due. Runs after a response, and from the loop below."""
+        with connect() as conn:
+            mail.deliver_pending(conn, mailer, origin_, clock())
+
+    async def mail_loop():
+        # Retries with backoff, and stale `sending` rows; the first attempt is made right after
+        # the request that finished the job. Origin: PUBLIC_ORIGIN, as there is no request here.
+        while True:
+            await asyncio.sleep(mail.LOOP_SECONDS)
+            try:
+                await run_in_threadpool(deliver, settings.public_origin or '')
+            except Exception as e:
+                log.warning('mail loop error=%s', type(e).__name__)
+
+    @asynccontextmanager
+    async def lifespan(app):
+        task = asyncio.create_task(mail_loop()) if mailer is not None else None
+        log.info('started mailer=%s', 'resend' if mailer is not None else 'none')
+        yield
+        if task:
+            task.cancel()
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+    app.state.settings, app.state.clock, app.state.limiter = settings, clock, limiter
+    app.state.mailer = mailer
 
     async def in_db(fn, *args):
         def call():
@@ -131,6 +163,11 @@ def create_app(settings=None, clock=None, mailer=None):
 
     def origin(request):
         return auth.own_origin(request, settings.public_origin)
+
+    def then_mail(resp, request):
+        if mailer is not None:
+            resp.background = BackgroundTask(deliver, origin(request))
+        return resp
 
     def lookup(conn, request, token):
         """Active user for a token, or None. Unknown tokens count against the caller's IP."""
@@ -190,9 +227,31 @@ def create_app(settings=None, clock=None, mailer=None):
     def healthz():
         return {'ok': True}
 
-    @app.get('/static/app.css')
-    def css():
-        return Response((STATIC / 'app.css').read_text(), media_type='text/css')
+    @app.get('/static/{name}')
+    def static(name: str):
+        if name not in STATIC_TYPES:
+            raise HTTPException(404)
+        return Response((STATIC / name).read_text(), media_type=STATIC_TYPES[name])
+
+    @app.get('/s/{public_id}')
+    def summary_page(public_id: str):
+        """The summary. 404 for an ID that never existed or isn't done, 410 once expired."""
+        if not 16 <= len(public_id) <= 64:
+            raise HTTPException(404)
+        now = clock()
+        with connect() as conn:
+            job = conn.execute('SELECT status, video_id, finished_at FROM jobs WHERE public_id = ?',
+                               (public_id,)).fetchone()
+            if job is None or job['status'] != 'done':
+                raise HTTPException(404)
+            s = conn.execute('SELECT md, expires_at FROM summaries WHERE video_id = ?',
+                             (job['video_id'],)).fetchone() if job['video_id'] else None
+        # The link lives as long as both the summary and the job's own 30 days (D2). A cache
+        # entry refreshed by someone else's request doesn't revive an old link.
+        until = min(s['expires_at'], job['finished_at'] + RETENTION) if s else 0
+        if until <= now:
+            return HTMLResponse(render.gone(), 410)
+        return HTMLResponse(render.page(s['md'], job['video_id'], until))
 
     # ── friends ───────────────────────────────────────────────────────────
 
@@ -268,16 +327,16 @@ def create_app(settings=None, clock=None, mailer=None):
                 extra = {'retry_at': r.retry_at} if r.retry_at else {}
                 return err(r.status, r.code, r.message, **extra)
             log.info('submit job=%s user=%s status=%s', job['id'], user['id'], job['status'])
-            mail.deliver_pending(conn, mailer, origin(request))
             return JSONResponse(job_view(job),
                                 202 if created and job['status'] != 'done' else 200)
 
         resp = await in_db(work)
         if not browser_form:
-            return resp
+            return then_mail(resp, request) if resp.status_code in (200, 202) else resp
         if resp.status_code in (200, 202):
             status = json.loads(resp.body)['status']
-            return RedirectResponse(f'/?m={"done" if status == "done" else "queued"}', 303)
+            return then_mail(RedirectResponse(
+                f'/?m={"done" if status == "done" else "queued"}', 303), request)
         body = json.loads(resp.body)
         code = body.get('reason') or body['error']
         if resp.status_code == 401:
@@ -306,16 +365,13 @@ def create_app(settings=None, clock=None, mailer=None):
         worker_only(request)
         body = json_object(await read_body(request, limit))
 
-        def work(conn):
-            fn(conn, job_id, body, clock())
-            mail.deliver_pending(conn, mailer, origin(request))
         try:
-            await in_db(work)
+            await in_db(fn, job_id, body, clock())
         except protocol.ProtocolError as e:
             log.info('%s job=%s rejected=%s', what, job_id, e.code)
             return err(e.status, e.code)
         log.info('%s job=%s', what, job_id)
-        return {'ok': True}
+        return then_mail(JSONResponse({'ok': True}), request)
 
     @app.post('/worker/jobs/{job_id}/complete')
     async def worker_complete(job_id: int, request: Request):

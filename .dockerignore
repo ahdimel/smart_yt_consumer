@@ -1,0 +1,11 @@
+# Railway builds from the uploaded tree; keep the image to server/ and lib/week.py.
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+server/.venv
+server/tests
+server/smoke.sh
+.cache
+.work
+out
+queue

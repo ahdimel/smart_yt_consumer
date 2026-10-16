@@ -27,8 +27,13 @@ print(json.dumps({'lease_id': sys.argv[1], 'md': open('out/2026-W40/6CAbZRpy4tQ.
 EOF
 echo "complete: $(curl -s -H 'Authorization: Bearer smoke-worker' -H 'Content-Type: application/json' \
   --data @"$SP/complete.json" "$B/worker/jobs/$JID/complete")"
-echo "resubmit (cache hit): $(curl -s -H "Authorization: Bearer $TOK" -H 'Content-Type: text/plain' \
-  --data 'https://youtu.be/dQw4w9WgXcQ' $B/api/requests)"
+HIT=$(curl -s -H "Authorization: Bearer $TOK" -H 'Content-Type: text/plain' \
+  --data 'https://youtu.be/dQw4w9WgXcQ' $B/api/requests)
+echo "resubmit (cache hit): $HIT"
+SURL=$(echo "$HIT" | python3 -c 'import sys,json;print(json.load(sys.stdin)["summary_url"])')
+curl -s -o "$SP/summary.html" -w 'summary page: %{http_code} %{content_type}\n' "$B$SURL"
+echo "summary page h2: $(grep -o '<h2>[^<]*' "$SP/summary.html" | head -1 | cut -c5-)"
+curl -s -o /dev/null -w 'unknown summary: %{http_code}\n' "$B/s/AAAAAAAAAAAAAAAAAAAAAA"
 echo "bad url: $(curl -s -H "Authorization: Bearer $TOK" -H 'Content-Type: text/plain' \
   --data 'https://vimeo.com/1' $B/api/requests)"
 curl -s -H "Cookie: session=$TOK" $B/admin > "$SP/admin.html"
@@ -38,7 +43,9 @@ import sys, json
 d = json.load(sys.stdin)
 print("tokens 24h:", d["tokens_last_24h"], "| emails pending:", d["emails_pending"],
       "| requests:", [(r["status"], r["cache_hit"]) for r in d["requests"]])'
-curl -s -o /dev/null -w 'css: %{http_code} %{content_type}\n' $B/static/app.css
+for f in app.css summary.css summary.js; do
+  curl -s -o /dev/null -w "$f: %{http_code} %{content_type}\n" $B/static/$f
+done
 kill $PID; wait $PID 2>/dev/null
 echo '--- server log:'; cat "$SP/uvicorn.log"
 grep -c -E 'youtube|dQw4w9WgXcQ|smoke-worker' "$SP/uvicorn.log" | sed 's/^/content or secret hits in log: /'

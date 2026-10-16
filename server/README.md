@@ -1,8 +1,8 @@
 # server/
 
 The Railway app from `docs/PROPOSAL.md` §5.1: intake, quotas, the shared cache, the worker
-protocol and the admin view. **M1 state:** it runs locally and is tested against §11 A–E and G.
-It has no email transport, summary page, intake modalities or retention purge yet (M3–M5).
+protocol, the admin view (M1), and delivery: the summary page and Resend email (M3). Tested
+against §11 A–E, G, H and I. It has no intake modalities or retention purge yet (M4, M5).
 
 ## Run and test
 
@@ -17,7 +17,8 @@ server/.venv/bin/python -m server.cli invite --name Owner --email hello@ahdimel.
 server/.venv/bin/uvicorn server.app:create_app --factory --no-access-log
 ```
 
-Keep `--no-access-log`. Access lines record paths, and `/u/<token>` is a path.
+Keep `--no-access-log`. Access lines record paths, and `/u/<token>` and `/s/<public_id>` are
+credentials in a path.
 
 `server/smoke.sh` runs one request end to end under real uvicorn, with curl standing in for the
 worker. It uses a throwaway database. M2 can copy the request and response shapes from it.
@@ -30,6 +31,22 @@ worker. It uses a throwaway database. M2 can copy the request and response shape
 | `COOKIE_SECURE` | `0` only for plain-HTTP local runs |
 | `CLIENT_IP_HEADER` | The header Railway's edge sets with the client IP, for the token-miss limiter. Set it only behind that edge: clients can forge it |
 | `LEASE_SECONDS` | How long a claimed job stays leased (default 1800) |
+| `RESEND_API_KEY` | Send-only Resend key for `notify.ahdimel.com`. Unset means no mailer: email waits at `pending` |
+| `MAIL_FROM`, `MAIL_REPLY_TO` | Default `desloppify <desloppify@notify.ahdimel.com>` and `hello@ahdimel.com` |
+| `RESEND_API_URL` | Tests only: points the mailer at a fake Resend |
+
+## Production (Railway)
+
+`Dockerfile` and `railway.json` at the repo root. The image holds `server/` and `lib/week.py`,
+nothing else. One replica, with a volume mounted at `/data` and `DB_PATH=/data/server.db`.
+Deploys are `railway up` from a clean `main`, never on push: drain pushes to `main` every 15
+minutes. The exact commands, including running `server.cli` inside the service with `railway
+ssh`, are in `ops.local.txt` on the owner's Mac.
+
+`CLIENT_IP_HEADER`: Railway's docs name `X-Real-IP` as the client IP, but don't say whether a
+client's own copy is replaced. The check: send ten bad tokens with one forged `X-Real-IP`, then
+one with a different forged value. If that one gets 429, the edge overwrote the header.
+(Result: to be recorded on first deploy.)
 
 ## Layout
 
@@ -41,9 +58,11 @@ worker. It uses a throwaway database. M2 can copy the request and response shape
 | `codes.py` | Error codes: attempts, backoff, the friend-facing sentence |
 | `admin.py` | Usage aggregation and the admin page. Never selects content columns |
 | `auth.py` | Token hashing, the per-IP miss limiter, the Origin check |
-| `mail.py` | Outbox: exactly one email per finished job. The transport comes in M3 |
+| `mail.py` | Outbox, Resend transport and the copy: exactly one email per finished job |
+| `render.py`, `summary.html` | The summary page, rendered from stored markdown by `lib/week.py` |
+| `static/` | `app.css`, and the summary page's `summary.css` and `summary.js` (Save as PDF) |
 | `app.py` | Routes and the credential each one accepts |
-| `cli.py` | `invite` (the first admin) and `reissue` (a lost admin link) |
+| `cli.py` | `invite` (the first admin), `reissue` (a lost admin link), `test-email` |
 
 ## Choices the proposal left open
 
@@ -74,16 +93,34 @@ Made while building M1. Revisit any of them by changing the code and its test.
   starts with `https://`. A bare ID with no URL is rejected.
 - **Intake's 2 KB limit applies to the HTTP body** (413) and to the text (`invalid_url`).
 - **Email status gains `sending`.** It is a claim taken before calling the mailer, so
-  concurrent deliveries can't both send. With no mailer configured (all of M1), finished jobs
-  stay `pending`. **M3 must add** a retry loop with backoff and a reset for stale `sending`
-  rows. Today delivery is retried on every request, with no backoff.
+  concurrent deliveries can't both send. With no mailer configured, finished jobs stay
+  `pending`.
+- **Email delivery (M3).** The first attempt runs right after the response that finished the
+  job. After that, a loop in the app retries every 30 s, honouring each job's backoff: 1, 5, 15
+  and 60 minutes, then 3 hours. After 6 attempts, about 4.5 hours, the email is `failed`. 5xx,
+  408, 409, 429 and network errors are transient. Any other 4xx fails at once, with no retry
+  (H5). A `sending` row older than 10 minutes is reset to `pending`. Each job's attempts share
+  one Resend `Idempotency-Key`, so a reset can't double-send within Resend's 24 h window.
+  Columns `email_attempts`, `email_not_before` and `email_claimed_at` are added, by `ALTER
+  TABLE` on start when missing.
+- **Failure emails carry no title** (H2 asks for one). A failed job has none: the worker
+  doesn't report one and the server never fetches one. The email names the time of the request
+  instead. Having the worker send the yt-dlp title with `fail` would fix it; that touches the
+  worker, so it waits for M5b.
+- **The summary page link ends with the shorter of two lifetimes:** the summary's `expires_at`
+  and the job's own `finished_at` + 30 days. So a cache hit near the end of the window ends with
+  the summary, and a summary refreshed by someone else's later request doesn't revive an old
+  link. Jobs that aren't `done` are 404, like unknown IDs.
+- **Timestamp chips link into the video** (`watch?v=<id>&t=<s>s`). The server adds the links
+  after `lib/week.py` renders, so the week pages drain publishes are unchanged.
+- **The summary page uses system fonts.** The week page loads Google Fonts, which the CSP
+  forbids, and which would tell Google who reads what.
 - **For M5's log audit:** Railway's edge logs request paths, so invite tokens (`/u/<token>`)
-  will appear in Railway's HTTP logs, which the owner can read. The app's own logs never
-  contain tokens.
+  and summary capability IDs (`/s/<public_id>`) appear in Railway's HTTP logs, which the owner
+  can read. The app's own logs contain neither, and no addresses or titles.
 
 ## Not yet built
 
-M3: `/s/<id>` summary page, Resend transport and the email copy (§11 H, I), Railway deploy.
 M4: `/share`, `/add`, the manifest, `/welcome` and `/about` content (§11 J, M). The status and
 history page (§11 L) is still a minimal list on `/`.
 M5: the retention purge (§11 K).

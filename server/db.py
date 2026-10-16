@@ -44,6 +44,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   model               TEXT,
   usage_at            INTEGER,
   email_status        TEXT CHECK (email_status IN ('pending', 'sending', 'sent', 'failed')),
+  email_attempts      INTEGER NOT NULL DEFAULT 0,
+  email_not_before    INTEGER,
+  email_claimed_at    INTEGER,
   created_at          INTEGER NOT NULL,
   finished_at         INTEGER
 );
@@ -86,12 +89,25 @@ def connect(path):
     return conn
 
 
+# Columns added after a database may already exist. CREATE TABLE IF NOT EXISTS won't add them.
+ADDED = {
+    'jobs': (('email_attempts', 'INTEGER NOT NULL DEFAULT 0'),
+             ('email_not_before', 'INTEGER'),
+             ('email_claimed_at', 'INTEGER')),
+}
+
+
 def init(path):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     conn = connect(path)
     try:
         conn.execute('PRAGMA journal_mode = WAL')
         conn.executescript(SCHEMA)
+        for table, cols in ADDED.items():
+            have = {r['name'] for r in conn.execute(f'PRAGMA table_info({table})')}
+            for name, decl in cols:
+                if name not in have:
+                    conn.execute(f'ALTER TABLE {table} ADD COLUMN {name} {decl}')
     finally:
         conn.close()
 

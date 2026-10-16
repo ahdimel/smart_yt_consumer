@@ -26,24 +26,16 @@ def week_label(tag):
     return f'{mon:%-d %b} – {sun:%-d %b %Y}'
 
 
-def parse_text(raw):
-    import io, tempfile, os
-    fd, tmp = tempfile.mkstemp(suffix='.md')
-    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
-        fh.write(raw)
-    try:
-        return parse(tmp)
-    finally:
-        os.unlink(tmp)
-
-
 def parse(path):
+    return parse_text(open(path, encoding='utf-8').read())
+
+
+def parse_text(raw):
     """Split front matter from body.
 
     Tolerant of what models actually emit: multi-line values continued on an
     indented line, YAML block scalars (`>-`, `|`), and quoted values.
     """
-    raw = open(path, encoding='utf-8').read()
     if not raw.startswith('---\n'):
         return {}, raw.strip()
     head, _, body = raw[4:].partition('\n---\n')
@@ -146,6 +138,23 @@ def slug(meta, vid):
     return base[:40] or vid
 
 
+def article(vid, m, body, s):
+    """One summary as an <article>: kicker, title, verdict box, source link, body.
+    Also used by the server's single-summary page (server/render.py)."""
+    kick = ''.join(f'<span>{html.escape(m[k])}</span>'
+                   for k in ('channel', 'duration', 'views') if m.get(k))
+    cost = ' &middot; '.join(filter(None, [
+        f'<b>{html.escape(m["watchable"])}</b> worth watching' if m.get('watchable') else '',
+        f'<b>{html.escape(m["fluff"])} fluff</b>' if m.get('fluff') else '',
+        html.escape(m['compression']) if m.get('compression') else '']))
+    return (f'<article id="{s}">\n<div class="kicker">{kick}</div>\n'
+            f'<h2>{inline(m.get("title", vid))}</h2>\n'
+            f'<div class="verdict"><p>{inline(m.get("verdict",""))}</p>'
+            f'<p class="cost">{cost}</p></div>\n'
+            f'<a class="src" href="https://youtu.be/{vid}">watch on YouTube &rarr;</a>\n'
+            f'{to_html(body)}\n</article>')
+
+
 def render(week_dir, tag):
     files = sorted(glob.glob(os.path.join(week_dir, '*.md')))
     if not files:
@@ -169,21 +178,7 @@ def render(week_dir, tag):
     nav = ''.join(f'<a href="#{s}">{html.escape(m.get("nav") or m.get("title","")[:28])}</a>'
                   for _, m, _, s in entries)
 
-    arts = []
-    for vid, m, body, s in entries:
-        kick = ''.join(f'<span>{html.escape(m[k])}</span>'
-                       for k in ('channel', 'duration', 'views') if m.get(k))
-        cost = ' &middot; '.join(filter(None, [
-            f'<b>{html.escape(m["watchable"])}</b> worth watching' if m.get('watchable') else '',
-            f'<b>{html.escape(m["fluff"])} fluff</b>' if m.get('fluff') else '',
-            html.escape(m['compression']) if m.get('compression') else '']))
-        arts.append(
-            f'<article id="{s}">\n<div class="kicker">{kick}</div>\n'
-            f'<h2>{inline(m.get("title", vid))}</h2>\n'
-            f'<div class="verdict"><p>{inline(m.get("verdict",""))}</p>'
-            f'<p class="cost">{cost}</p></div>\n'
-            f'<a class="src" href="https://youtu.be/{vid}">watch on YouTube &rarr;</a>\n'
-            f'{to_html(body)}\n</article>')
+    arts = [article(vid, m, body, s) for vid, m, body, s in entries]
 
     return (tpl.replace('{{WEEK}}', week_label(tag))
                .replace('{{TAG}}', tag)

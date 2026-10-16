@@ -56,8 +56,9 @@ class FakeMailer:
         self.sent = []
         self.outcome = 'sent'
 
-    def send(self, to, subject, html_body, text_body):
-        self.sent.append({'to': to, 'subject': subject, 'html': html_body, 'text': text_body})
+    def send(self, to, subject, html_body, text_body, key):
+        self.sent.append({'to': to, 'subject': subject, 'html': html_body, 'text': text_body,
+                          'key': key})
         return self.outcome
 
 
