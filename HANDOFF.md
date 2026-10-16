@@ -14,7 +14,7 @@ Build against it; don't reopen the decisions without asking.
 |---|---|
 | M0: measure and fix | ✅ XSS fix in `lib/week.py` + `tests/test_render.py` (17 tests). The overhead A/B is in `docs/m0-ab.md`; adoption shelved to M5b |
 | M3a: domain and email | ✅ 2026-10-16, including the Railway CNAME (done in M3). `ahdimel.com` on Namecheap; Proton for people; Resend on `notify.ahdimel.com` for apps; DMARC `quarantine`. See "DNS & email" in `CLAUDE.md` |
-| M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Local only. Choices the proposal left open are listed in `server/README.md` |
+| M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Deployed in M3. Choices the proposal left open are listed in `server/README.md` |
 | M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
 | M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
 | **M4: intake and intro page** | **Next.** Brief below |
@@ -80,8 +80,8 @@ are green. The owner rewrites the intro copy in their own voice, so leave time f
   are static files too.
 - **`/welcome` and `/about` (§5.4).** Claude drafts from §5.4's outline; **the owner rewrites the
   copy.** `/welcome` puts the setup block matching the User-Agent first and collapses the others
-  (M5). Limits come from the user's row, not hardcoded numbers (M6). With no cookie, both return
-  the bare "Private, invite-only." page (M3, M4).
+  (§11 M5). Limits come from the user's row, not hardcoded numbers (§11 M6). With no cookie, both return
+  the bare "Private, invite-only." page (§11 M3, M4).
 - **Browser forms should show errors as a page, not JSON.** A refused paste-box POST (403, 401,
   429) currently shows the raw JSON body. The redirect-with-message path in `submit` covers
   quota and invalid URLs only.
