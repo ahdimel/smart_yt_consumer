@@ -86,6 +86,11 @@ def same_origin(request, public_origin=None):
 
     Browsers send Origin on every cross-origin POST, and Sec-Fetch-Site where supported. A
     request with neither is not from a browser page, so it carries no ambient cookie risk.
+
+    Every page sends Referrer-Policy: no-referrer, under which browsers send `Origin: null` on
+    their own same-origin form POSTs (Fetch standard, "serialize a request origin"). So when
+    the browser vouches with Sec-Fetch-Site: same-origin, a null Origin is not evidence of
+    anything. Without Sec-Fetch-Site, a null Origin (sandboxed iframes, data: pages) is refused.
     """
     site = request.headers.get('sec-fetch-site')
     if site is not None and site not in ('same-origin', 'none'):
@@ -94,7 +99,7 @@ def same_origin(request, public_origin=None):
     if origin is None:
         return True
     if origin == 'null':
-        return False
+        return site is not None
     want = urlsplit(own_origin(request, public_origin))
     got = urlsplit(origin)
     return (got.scheme, got.netloc.lower()) == (want.scheme, want.netloc.lower())

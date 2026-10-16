@@ -171,6 +171,23 @@ def test_cross_origin_post_rejected(env):                                       
     assert r.status_code == 303
 
 
+def test_real_browser_form_post_accepted(env):                                   # B10
+    """What a browser actually sends for the paste box under Referrer-Policy: no-referrer:
+    Origin: null, vouched for by Sec-Fetch-Site. Production refused this (403) until M3."""
+    u = env.user()
+    admin = env.user(admin=True)
+    browser = {'Origin': 'null', 'Sec-Fetch-Site': 'same-origin'}
+    r = env.client.post('/api/requests', data={'url': url(1)}, headers={**u.cookie, **browser},
+                        follow_redirects=False)
+    assert r.status_code == 303 and r.headers['location'] == '/?m=queued'
+    r = env.client.post('/admin/pause', headers={**admin.cookie, **browser}, follow_redirects=False)
+    assert r.status_code == 303
+    for site in ('cross-site', 'same-site'):
+        r = env.client.post('/api/requests', data={'url': url(2)},
+                            headers={**u.cookie, 'Origin': 'null', 'Sec-Fetch-Site': site})
+        assert r.status_code == 403, site
+
+
 def test_no_cors(env):                                                           # B10
     r = env.client.options('/api/requests', headers={
         'Origin': 'https://evil.example', 'Access-Control-Request-Method': 'POST'})
