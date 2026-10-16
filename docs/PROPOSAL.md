@@ -320,9 +320,9 @@ until they pass.
 |---|---|---|
 | **M0** ✅ | **Measure and fix.** `week.py` XSS fix with tests (done). Overhead A/B per §10.1, run 2026-10-15; adoption shelved to M5b (`docs/m0-ab.md`) | Done: XSS tests green; A/B measured; `--no-session-persistence` verified |
 | **M1** ✅ | **Server core.** Data model, invites, cookie and bearer auth, URL validation, quotas, cache and coalescing, admin view, pause, worker protocol | Done 2026-10-16: §11 A–E, G green locally (`server/README.md`) |
-| **M2** ✅ | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | Done 2026-10-16: §11 F green (`tests/test_worker.py`, `tests/test_worker_server.py`); one real video end-to-end against a local server. The LaunchAgent is installed in M3, once there is a server to poll |
-| **M3a** | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | `dig` shows every record; Railway serves HTTPS on the domain; Resend shows all records green; a test email lands in the inbox of Gmail and of one other provider, not spam |
-| **M3** | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Real email received from production; §11 H, I green |
+| **M2** ✅ | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | Done 2026-10-16: §11 F green (`tests/test_worker.py`, `tests/test_worker_server.py`); one real video end-to-end against a local server. The LaunchAgent was installed in M3 and is live against production |
+| **M3a** ✅ | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | Done 2026-10-16: every record answers on 8.8.8.8, 1.1.1.1 and Namecheap's own server; Railway serves HTTPS on `desloppify.ahdimel.com` (CNAME and verify TXT added in M3); Resend green; test mail in the inbox at Gmail and Proton |
+| **M3** ✅ | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Done 2026-10-16: §11 H, I green; email from production passes SPF, DKIM and DMARC at Gmail and Proton; the Mac worker completed one real job end to end against production (`HANDOFF.md`) |
 | **M4** | **Intake modalities and intro page.** PWA manifest and share target, bookmarklet page, iOS Shortcut, `/welcome` and `/about` (§5.4), with the copy rewritten by the owner | Manually verified on one Android, one iPhone, one desktop; §11 J, M green |
 | **M5** | **Retention and privacy audit.** Purge job, log audit, admin-response audit | §11 K green; a manual pass over Railway logs shows no content |
 | **M5b** | **Summarization revisit — gate before any invite.** Rewrite the summaries so they stand alone for someone who has never seen the video (§10.3). A/B with `tools/ab/` against today's production, including a blind read. Fold in the M0 lean flags if they still hold | §10.3 metrics met; the owner signs off on the summaries of 5 reference videos; tokens per summary recorded and the token ceiling (§7) set from them |
@@ -377,7 +377,10 @@ clicks. Every step ends with a check Claude runs.
 
 1. ✅ **Choose the name:** `ahdimel.com`, a personal domain usable across projects.
 2. ✅ **Buy on Namecheap** (2026-10-15): WHOIS privacy on, auto-renew on, no add-ons.
-3. **Railway custom domain.** Needs the M3 Railway service to exist first. In the service, under
+3. ✅ **Railway custom domain (done 2026-10-16, in M3).** Added with `railway domain
+   desloppify.ahdimel.com --service server --port 8080`; Railway verified it and issued the
+   certificate within minutes of the records appearing. Needs the M3 Railway service to exist
+   first. In the service, under
    Settings → Networking → Custom Domain, enter `desloppify.ahdimel.com`. In Namecheap Advanced
    DNS, add `CNAME desloppify → <id>.up.railway.app.` and the `_railway-verify.desloppify` TXT
    that Railway shows. Because this is a subdomain, it's a standard CNAME, and REI's root-CNAME
@@ -428,12 +431,16 @@ clicks. Every step ends with a check Claude runs.
    - Never ask the owner to `pbpaste` a secret in the same command they copy from chat: the
      command overwrites the clipboard. Use `read -rs` to prompt for it instead.
 
-5. **API key.** Create a Resend key scoped to "sending access" for `notify.ahdimel.com` only, and set it
+5. ✅ **API key (done 2026-10-16).** Typed at a hidden `read -rs` prompt and piped into
+   `railway variable set RESEND_API_KEY --stdin`; `ops.local.txt` §11. Create a Resend key scoped to "sending access" for `notify.ahdimel.com` only, and set it
    as `RESEND_API_KEY` in Railway, during M3, when the service exists. Use one key per project,
    so revoking one doesn't break the others. It never goes in the repo or on the Mac.
-6. **Deliverability check (in M3, from production).** The app's first real email goes to the
+6. ✅ **Deliverability check (done 2026-10-16, from production).** The app's first real email goes to the
    owner's Gmail and one other provider. Open "Show original" and confirm SPF, DKIM and DMARC
-   all say PASS. A new domain has no sending reputation, so the first emails may land in spam.
+   all say PASS. Result: PASS on all three at Gmail and Proton. Proton first rejected the mail
+   to `hello@` (`554 5.7.1 rejected by rspamd filter`). Two single-variable sends showed the
+   cause: Reply-To equal to To, together with a link to the new hostname. Either alone was
+   delivered, so `server/mail.py` drops Reply-To when it equals the recipient. A new domain has no sending reputation, so the first emails may land in spam.
    The welcome email asks friends to add the sender to their contacts.
 7. ✅ **Record it.** A "DNS & email" section in this repo's `CLAUDE.md` (2026-10-16).
 

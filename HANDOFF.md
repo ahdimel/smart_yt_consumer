@@ -13,16 +13,24 @@ Build against it; don't reopen the decisions without asking.
 | Milestone | State |
 |---|---|
 | M0: measure and fix | ✅ XSS fix in `lib/week.py` + `tests/test_render.py` (17 tests). The overhead A/B is in `docs/m0-ab.md`; adoption shelved to M5b |
-| M3a: domain and email | ✅ except the Railway CNAME (comes with M3). `ahdimel.com` on Namecheap; Proton for people; Resend on `notify.ahdimel.com` for apps; DMARC `quarantine`. See "DNS & email" in `CLAUDE.md` |
+| M3a: domain and email | ✅ 2026-10-16, including the Railway CNAME (done in M3). `ahdimel.com` on Namecheap; Proton for people; Resend on `notify.ahdimel.com` for apps; DMARC `quarantine`. See "DNS & email" in `CLAUDE.md` |
 | M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Local only. Choices the proposal left open are listed in `server/README.md` |
-| M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. One real video went end to end against a local server. **Not installed yet**: there is no server to poll until M3 |
-| **M3: delivery** | **Next.** Summary page, Resend email, Railway deploy, the CNAME, then the worker goes live. Brief below |
-| M4, M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone** |
+| M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
+| M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
+| **M4: intake and intro page** | **Next.** Brief below |
+| M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone**. Only the owner has a production login |
 
 Things a new agent should know:
-- **The existing pipeline keeps running until the M6 cutover.** `drain`, the LaunchAgent, the
-  weekly digest and the git queue below are still live. Don't break them while building
-  `server/` and `worker`.
+- **The existing pipeline keeps running until the M6 cutover.** `drain`, its LaunchAgent, the
+  weekly digest and the git queue below are still live, alongside the worker's LaunchAgent
+  (`com.ahdimel.smartytconsumer.worker`). Don't break them while building `server/` and `worker`.
+- **Production** is Railway project `desloppify`, service `server`, with a volume at `/data`.
+  This directory is linked to it with `railway link` (stored in `~/.railway`, not the repo). The
+  repo holds no Railway IDs: keep it that way. Deploy with `railway up --service server --ci`
+  from a clean tree (`ops.local.txt` §10). Deploys never follow a git push, because drain pushes
+  every 15 minutes. **Ask the owner before every deploy.** `server.cli` runs inside the service
+  through `railway ssh` (§2). Secrets (`WORKER_TOKEN`, `RESEND_API_KEY`) live in Railway; don't
+  print them with `railway variable list --kv`.
 - **The summarization engine is frozen until M5b:** same prompt, Opus, high effort, flags as in
   `drain`. The worker adds only `--no-session-persistence --output-format json` (D8).
 - **The repo is public.** No friend data and no secrets, ever. Secrets live in Railway env vars,
@@ -38,62 +46,69 @@ Things a new agent should know:
 - **The owner wants infra steps walked through one at a time,** with an outside check after
   each step (see how M3a was done in `docs/PROPOSAL.md` §10.2).
 
-## M3 brief: delivery
+## M4 brief: intake modalities and the intro page
 
-Spec: §5.1 (summary page, email), §8, §10.2 steps 3, 5 and 6, tests §11 H and I. Done when
-(§10): §11 H and I are green, and a real email from production reaches Gmail and one other
-provider. M2 adds to that: the worker on this Mac completes one real job against production.
+Spec: §5.2 (intake), §5.4 (intro page), §2 "Intro page" and "Extras", tests §11 J and M.
+Done when (§10): manually verified on one Android, one iPhone and one desktop, and §11 J and M
+are green. The owner rewrites the intro copy in their own voice, so leave time for that round.
 
 **What exists.**
-- `server/` (M1). `mail.py` is an outbox with no transport: finished jobs sit at
-  `email_status='pending'`. `jobs.public_id` is the capability ID for `/s/<id>`. The choices
-  M1 made are listed in `server/README.md`.
-- `lib/week.py` renders summary markdown safely (`tests/test_render.py`, I4–I9), but only as a
-  whole week page through `lib/page.html`. `/s/<id>` needs a single-summary template derived
-  from it (§5.1, "Rendering").
-- `worker` (M2) runs against any `SERVER_URL`. Installing it is `ops.local.txt` §5–6.
+- Production at `https://desloppify.ahdimel.com` (M3), with the owner as the only user (admin).
+  `GET /welcome` and `/about` are placeholders; `/` is the M1 paste box and a bare job list.
+  `POST /api/requests` already takes JSON `{url}`, form `url`/`text`, and `text/plain`, by
+  cookie or by bearer (J6's server side).
+- `server/pages.py` builds HTML with `html.escape` and no template engine. The CSP allows
+  script and style only from `'self'`, so every script is a file under `server/static/`. Add it
+  to `STATIC_TYPES` in `app.py`, which also serves its content type. `summary.js` is the
+  example.
+- `auth.same_origin()` guards every cookie POST. See below for what it learned in M3.
 
 **Things to get right:**
-- **Summary page.** It renders on the server from `summaries.md`, so a template change applies
-  to old summaries. Send the headers from I1. The CSP forbids inline script, so "Save as PDF"
-  (`window.print()`) needs a static JS file under `server/static/`. Unknown IDs return 404.
-  Once `expires_at` passes, the page returns 410 and shows no title (I11). The Railway image
-  must include `lib/`.
-- **Email.** Use Resend's HTTP API over plain HTTPS (D9), sending as
-  `desloppify@notify.ahdimel.com` with `Reply-To: hello@ahdimel.com`. The body is the title,
-  the link and "available until <date>", and nothing else (D1, H7). Build the retry loop with
-  backoff and the reset of stale `sending` rows that `server/README.md` says M3 owes. On a 4xx,
-  mark the email failed and don't retry (H5).
-- **Railway.** Create a new service with a volume, and set `DB_PATH` on the volume. Env vars:
-  `WORKER_TOKEN`, `RESEND_API_KEY`, `PUBLIC_ORIGIN=https://desloppify.ahdimel.com` and
-  `CLIENT_IP_HEADER`. Find out which header Railway's edge actually sets rather than guessing,
-  because clients can forge any other. Keep uvicorn's `--no-access-log`. Work out how the
-  owner runs `server.cli invite` against the production DB, and fill in `ops.local.txt` §2.
-- **Domain and key.** Follow §10.2 step 3: the CNAME plus Railway's verify TXT, checked against
-  the three resolvers named in `CLAUDE.md`. Then step 5: a send-only Resend key scoped to
-  `notify.`, which the owner puts straight into Railway and which never touches the Mac's disk.
-  Walk the owner through both one step at a time, with a check after each.
-- **The worker goes live.** Do this once `https://desloppify.ahdimel.com/healthz` answers. The
-  owner creates `~/.config/smart_yt_consumer/env` (`ops.local.txt` §5), which generates the
-  token on the Mac. The same token then has to reach Railway's `WORKER_TOKEN` without being
-  echoed or passing through the clipboard: design that step. Then install the LaunchAgent
-  (§6). **Ask before loading it.** `drain` keeps running alongside until M6.
-- **Railway's HTTP logs record paths.** `/s/<public_id>` is a capability URL, like `/u/<token>`.
-  Note it for M5's log audit, as `server/README.md` already does for `/u/`.
-- **Don't invite anyone.** M5b gates that.
+- **`POST /share` (Android share target).** It accepts `url`, `text` (the YouTube app puts the
+  link there) or only `title` (J1–J3). It is a cookie POST that the OS starts, not a page, so
+  check which `Sec-Fetch-Site` and `Origin` Chrome actually sends, and whether the `SameSite=Lax`
+  cookie comes along (§12). Verify on a real device before trusting a test. The fallback is a
+  service worker that catches the share and re-posts it same-origin.
+- **`/add` (bookmarklet).** The URL travels in `#fragment`, which never reaches the server. The
+  page's script (a static file) reads `location.hash` and POSTs it. J5 asserts on the request
+  log that the server never saw the URL in a path or query, and J7 that intake routes refuse GET
+  with a query string (405).
+- **The iOS Shortcut** posts JSON with `Authorization: Bearer <token>`. The friend pastes their
+  token once. The intro page must explain this without showing the token anywhere it could leak
+  (no query strings, nothing logged).
+- **`/manifest.webmanifest`** declares `share_target` with POST and form encoding (J4). Icons
+  are static files too.
+- **`/welcome` and `/about` (§5.4).** Claude drafts from §5.4's outline; **the owner rewrites the
+  copy.** `/welcome` puts the setup block matching the User-Agent first and collapses the others
+  (M5). Limits come from the user's row, not hardcoded numbers (M6). With no cookie, both return
+  the bare "Private, invite-only." page (M3, M4).
+- **Browser forms should show errors as a page, not JSON.** A refused paste-box POST (403, 401,
+  429) currently shows the raw JSON body. The redirect-with-message path in `submit` covers
+  quota and invalid URLs only.
+- **Don't invite anyone.** M5b gates that. Test devices use the owner's own login, or a
+  throwaway user that is revoked afterwards.
 
-**What M2 learned, for whoever touches the worker:**
-- An idle worker logs nothing. To see that the timer fires, read `runs` and `last exit code`
-  in `launchctl print gui/$(id -u)/com.ahdimel.smartytconsumer.worker`.
-- An unreachable server is logged once per outage (the flag file is `.work/.unreachable`), not
-  once a minute. After `rate_limited`, or after a report the server didn't acknowledge, the run
-  stops and the next one starts 60 s later.
-- The real run: a 3-minute video took 108 s and used 22.6k cache-write, 4.9k cache-read and
-  5.3k output tokens, $0.37 API-equivalent. The summary closely matched drain's for the same
-  video.
-- `drain`'s `--disallowed-tools` list and `vsum`'s `--sub-langs` and `--extractor-args` are
-  copied into `worker`. A test fails if they drift apart. When M6 retires `drain`, move the
-  canonical copy into `worker`.
+**What M3 learned, for whoever touches the server:**
+- **`Referrer-Policy: no-referrer` makes browsers send `Origin: null`** on their own same-origin
+  form POSTs (Fetch standard). M1's check refused that, so every browser form returned 403 in
+  production until `same_origin()` learned to trust `Sec-Fetch-Site: same-origin`. The test
+  client sends a real Origin, so tests alone didn't catch it. Try every new form from a real
+  browser against production.
+- **Proton's rspamd rejects app mail to an `@ahdimel.com` mailbox** when `Reply-To` equals `To`
+  and the body links to the young `desloppify.` hostname; either alone passes. `mail.py` drops
+  Reply-To when it equals the recipient. A friend on `@proton.me` is untested.
+- **Proton files the summary email under "Newsletters"** (seen on the first production job).
+  It arrives, but in a category the reader may not check. The intro page's setup steps should
+  say where to look, and suggest adding the sender to contacts (§10.2 step 6).
+- **Railway:** new services can't use `railway.json` (deprecated; its replacement is
+  `.railway/railway.ts`). The healthcheck and restart policy were set once through `railway api`.
+  The edge overwrites `X-Real-IP` (checked by forgery, `server/README.md`). `railway ssh` needs
+  the key registered with a bare `railway ssh keys add`. FastAPI's `@app.get` doesn't answer
+  HEAD, so `/healthz` declares it for `curl -I`.
+- **Failure emails carry no title**, because the worker reports none (`server/README.md`).
+  Fixing that touches the worker, so it waits for M5b.
+- **Railway's HTTP log records paths**, including `/u/<token>` and `/s/<public_id>`. The app's
+  own log holds job IDs, codes and outcomes only. M5's audit should start from this.
 
 ## The existing pipeline (state as of 2026-10-07, still running)
 

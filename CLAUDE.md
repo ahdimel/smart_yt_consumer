@@ -94,14 +94,16 @@ session without the Artifact tool is expected to refuse rather than echo one.
 The owner's personal domain, shared by lightweight projects. Registrar and DNS: **Namecheap**
 (WHOIS privacy and auto-renew on). Full record table and history: `docs/PROPOSAL.md` §10.2.
 
-- **This app** will live at `desloppify.ahdimel.com`: a CNAME to Railway, added in M3. Not live
-  yet.
+- **This app** lives at `desloppify.ahdimel.com` (live 2026-10-16). Records: `CNAME desloppify`
+  → the target Railway shows for the domain, and `TXT _railway-verify.desloppify`. Railway
+  issues the certificate. Check with `railway domain status desloppify.ahdimel.com --service
+  server`. The Railway project is `desloppify`, service `server`.
 - **People mail:** Proton Mail Plus hosts the root. `hello@ahdimel.com` is the public contact,
   and `desloppify@ahdimel.com` also exists. No catch-all.
 - **App mail:** Resend, verified on **`notify.ahdimel.com` only**. Apps send as
   `<project>@notify.ahdimel.com`, with `Reply-To: hello@ahdimel.com`.
 - **DMARC** is `p=quarantine` on the root and covers `notify.`. Both paths were verified PASS on
-  2026-10-16.
+  2026-10-16, and again from production (Gmail and Proton) the same day.
 
 Do not:
 - **Re-add the root `ahdimel.com` to Resend.** Proton's rspamd rejects Resend mail
@@ -111,6 +113,9 @@ Do not:
   `send.notify` and needs nothing at the root.
 - **Switch Namecheap's Mail Settings away from Custom MX.** "Email Forwarding" replaces
   Proton's MX records.
+- **Send app mail to an `@ahdimel.com` mailbox with `Reply-To` equal to `To`.** Proton's rspamd
+  rejected exactly that (`554 5.7.1`) when the body also linked to `desloppify.ahdimel.com`;
+  either alone was delivered. `server/mail.py` leaves Reply-To off when it equals the recipient.
 
 When checking records, query `8.8.8.8`, `1.1.1.1` and `dns1.registrar-servers.com`, and run
 loops under `bash -c`: in zsh, `dig +short $q` with `q="TXT host"` looks up the literal name
@@ -135,7 +140,9 @@ lib/index_page.py   out/*/meta.json -> the standing index page
 lib/page.html       the week page template
 lib/repair.py       rewrite one summary's front matter into canonical form
 lib/repair_all.py   find and repair every malformed summary in a week directory
-server/             the service for friends (docs/PROPOSAL.md), M1: see server/README.md
+server/             the service for friends (docs/PROPOSAL.md), live at desloppify.ahdimel.com
+                    since M3: see server/README.md
+Dockerfile          the Railway image: server/ and lib/week.py only
 prompts/            the two-pass summarization prompt
 queue/              one file per queued URL; drain deletes each after summarizing it
 out/<week>/         per-video summaries (.md), meta.json, index.html, .publish.log
