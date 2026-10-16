@@ -47,8 +47,15 @@ class ResendMailer:
         return f'ResendMailer({self.url!r})'
 
     def send(self, to, subject, html_body, text_body, key):
-        body = json.dumps({'from': self.sender, 'to': [to], 'reply_to': self.reply_to,
-                           'subject': subject, 'html': html_body, 'text': text_body}).encode()
+        msg = {'from': self.sender, 'to': [to], 'subject': subject, 'html': html_body,
+               'text': text_body}
+        # Reply-To equal to To is a phishing signal (rspamd's REPLYTO_EQ_TO_ADDR). Together with
+        # a link to the young desloppify.ahdimel.com, it got the owner's own mail to hello@
+        # rejected by Proton ("554 5.7.1 rejected by rspamd filter", 2026-10-16); either alone
+        # was delivered. Replying to yourself is pointless, so leave the header off.
+        if self.reply_to and self.reply_to.strip().lower() != to.strip().lower():
+            msg['reply_to'] = self.reply_to
+        body = json.dumps(msg).encode()
         req = urllib.request.Request(self.url, data=body, method='POST', headers={
             'Authorization': f'Bearer {self.api_key}',
             'Content-Type': 'application/json',

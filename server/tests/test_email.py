@@ -187,6 +187,14 @@ def test_gives_up_after_max_attempts(renv, resend):
     assert job['email_status'] == 'failed' and len(resend.calls) == mail.MAX_ATTEMPTS
 
 
+def test_no_reply_to_when_mailing_the_reply_to_address(renv, resend):
+    owner = renv.user()
+    renv.sql('UPDATE users SET email = ? WHERE id = ?', 'Hello@Ahdimel.com', owner.id)
+    done_job(renv, owner)
+    [c] = resend.calls
+    assert c['body']['to'] == ['Hello@Ahdimel.com'] and 'reply_to' not in c['body']
+
+
 @pytest.mark.parametrize('status', [400, 401, 403, 422])
 def test_4xx_fails_without_retry(renv, resend, status):                          # H5
     resend.statuses = [status]
