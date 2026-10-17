@@ -18,7 +18,7 @@ Build against it; don't reopen the decisions without asking.
 | M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
 | M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
 | M4: intake and intro page | ✅ 2026-10-17, **except the open items** below. `/share` (Android share target), `/add` (bookmarklet), the manifest and icons, a "Paste and summarize" button, `/welcome` and `/about`; refused browser forms answer with pages. §11 J, M green (251 server tests). Verified against production from Firefox on the Mac (paste box, bookmarklet: new video and cache hit), and on an iPhone 15 Pro, iOS 26 (paste button in Safari and Firefox, sign-in in Chrome, the Home Screen icon, email → summary page → timestamp chips into the YouTube app). The HTTP log showed no URL, video ID or title on any of these paths |
-| M5: retention and privacy audit | ✅ 2026-10-17, **built, not yet deployed** (it goes out with the intro rewrite, below). `server/retention.py`: the hourly purge, `secure_delete` and WAL truncation, so purged text is gone from the file. §11 K green (263 server tests; `tests/test_privacy.py` runs K3 under uvicorn as the Dockerfile does). G3 re-run over every admin route after a purge. A pass over the HTTP and app logs of all 7 production deployments shows no content (`ops/audit-logs`). The owner's call on capability links in the HTTP log: **accept and disclose** (`/about`) |
+| M5: retention and privacy audit | ✅ 2026-10-17, deployed the same day (`6224314`, with the draft intro copy, below). `server/retention.py`: the hourly purge, `secure_delete` and WAL truncation, so purged text is gone from the file. §11 K green (263 server tests; `tests/test_privacy.py` runs K3 under uvicorn as the Dockerfile does). G3 re-run over every admin route after a purge. A pass over the HTTP and app logs of all 7 production deployments shows no content (`ops/audit-logs`). The owner's call on capability links in the HTTP log: **accept and disclose** (`/about`) |
 | **M5b: summaries that stand alone** | **Next. Gates inviting anyone.** Brief below |
 | M6 | Not started. Only the owner has a production login |
 
@@ -30,12 +30,12 @@ Build against it; don't reopen the decisions without asking.
    `ops.local.txt` §12. `cookie=no` or `refused cross_origin` means the fallback: a service
    worker at `/sw.js` that catches the share POST and re-posts it same-origin.
 2. **The intro copy is Claude's draft.** The owner rewrites `server/intro.py` in their own voice
-   (its docstring explains the `$` placeholders). Production runs `be329a8`; the commits after it
-   (`/favicon.ico`, the "each browser signs in on its own" line, iPhone → Home Screen, and **all
-   of M5**) go out with the rewrite, in one deploy. The rewrite must keep what M5 added to the
-   privacy block: the owner can read summary and invite links in the host's request log (up to
-   90 days) and in Resend's dashboard (30 days, with the title). After that deploy, run
-   `ops.local.txt` §13 once (`purge --vacuum`, then `ops/audit-logs`).
+   (its docstring explains the `$` placeholders). The owner had it in mind to ship the rewrite
+   together with M4's last commits, but asked for M5 to go out first: production runs `6224314`
+   (2026-10-17), with the draft copy, which only the owner can see. The rewrite goes out in its
+   own deploy. It must keep what M5 added to the privacy block: the owner can read summary and
+   invite links in the host's request log (up to 90 days) and in Resend's dashboard (30 days,
+   with the title).
 3. **Email to a friend's `@proton.me` address is untested.** Only the owner's own
    `@ahdimel.com` Proton mailbox has received app mail, and Proton's rspamd has been picky
    (`mail.py` drops Reply-To because of it).
