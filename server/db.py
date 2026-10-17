@@ -1,6 +1,7 @@
 """SQLite schema and connection handling. Times are integer Unix seconds.
 
-Content lives in `summaries` and `jobs.video_id` only; both are purged after retention (M5).
+Content lives in `summaries` and `jobs.video_id` only; retention.purge() removes both after 30
+days.
 Usage columns on `jobs` outlive it.
 """
 import os
@@ -86,6 +87,8 @@ def connect(path):
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA foreign_keys = ON')
     conn.execute('PRAGMA busy_timeout = 10000')
+    # Deleted and overwritten content is zeroed in the file, not left in free pages (M5).
+    conn.execute('PRAGMA secure_delete = ON')
     return conn
 
 

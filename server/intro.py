@@ -31,11 +31,16 @@ the hour.</p>
 """),
     ('privacy', """
 <h2>What I can and can't see</h2>
-<p>I can see that you made a request, when, and how much of my subscription it used. I can't see
-which video, its title, or the summary: not on my admin page, not in any log, not in my email
-account. Everything about the video is deleted after 30 days.</p>
+<p>I can see that you made a request, when, and how much of my subscription it used. My admin
+page, my server's own logs and my email account never show which video, its title, or the
+summary. Everything about the video is deleted from my server after 30 days.</p>
 <p>To be honest about the limits of that: this is how I built it, not a cryptographic guarantee.
-The data sits on a server I control, and I've chosen never to look.</p>
+The data sits on a server I control, and I've chosen never to look. Two copies sit outside it,
+and I can read both. My web host logs the address of every page opened, for up to 90 days, and
+that includes your invite link and each summary's link: opening one from there would show me
+that summary, or sign me in as you. The service that sends the emails keeps each one, title and
+link, for 30 days. I don't open either. Summary links stop working after 30 days, wherever
+they've been copied.</p>
 """),
     ('limits', """
 <h2>Why there are limits</h2>

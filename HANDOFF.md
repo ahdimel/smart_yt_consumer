@@ -18,8 +18,9 @@ Build against it; don't reopen the decisions without asking.
 | M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
 | M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
 | M4: intake and intro page | ✅ 2026-10-17, **except the open items** below. `/share` (Android share target), `/add` (bookmarklet), the manifest and icons, a "Paste and summarize" button, `/welcome` and `/about`; refused browser forms answer with pages. §11 J, M green (251 server tests). Verified against production from Firefox on the Mac (paste box, bookmarklet: new video and cache hit), and on an iPhone 15 Pro, iOS 26 (paste button in Safari and Firefox, sign-in in Chrome, the Home Screen icon, email → summary page → timestamp chips into the YouTube app). The HTTP log showed no URL, video ID or title on any of these paths |
-| **M5: retention and privacy audit** | **Next.** Brief below |
-| M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone**. Only the owner has a production login |
+| M5: retention and privacy audit | ✅ 2026-10-17, **built, not yet deployed** (it goes out with the intro rewrite, below). `server/retention.py`: the hourly purge, `secure_delete` and WAL truncation, so purged text is gone from the file. §11 K green (263 server tests; `tests/test_privacy.py` runs K3 under uvicorn as the Dockerfile does). G3 re-run over every admin route after a purge. A pass over the HTTP and app logs of all 7 production deployments shows no content (`ops/audit-logs`). The owner's call on capability links in the HTTP log: **accept and disclose** (`/about`) |
+| **M5b: summaries that stand alone** | **Next. Gates inviting anyone.** Brief below |
+| M6 | Not started. Only the owner has a production login |
 
 **Open from M4** (do these before M6, ideally in the next deploy):
 1. **Android is unverified on a device.** The owner has no Android phone yet. The share target is
@@ -30,8 +31,11 @@ Build against it; don't reopen the decisions without asking.
    worker at `/sw.js` that catches the share POST and re-posts it same-origin.
 2. **The intro copy is Claude's draft.** The owner rewrites `server/intro.py` in their own voice
    (its docstring explains the `$` placeholders). Production runs `be329a8`; the commits after it
-   (`/favicon.ico`, the "each browser signs in on its own" line, iPhone → Home Screen) go out with
-   the rewrite, in one deploy.
+   (`/favicon.ico`, the "each browser signs in on its own" line, iPhone → Home Screen, and **all
+   of M5**) go out with the rewrite, in one deploy. The rewrite must keep what M5 added to the
+   privacy block: the owner can read summary and invite links in the host's request log (up to
+   90 days) and in Resend's dashboard (30 days, with the title). After that deploy, run
+   `ops.local.txt` §13 once (`purge --vacuum`, then `ops/audit-logs`).
 3. **Email to a friend's `@proton.me` address is untested.** Only the owner's own
    `@ahdimel.com` Proton mailbox has received app mail, and Proton's rspamd has been picky
    (`mail.py` drops Reply-To because of it).
@@ -70,55 +74,88 @@ Things a new agent should know:
 - **The owner wants infra steps walked through one at a time,** with an outside check after
   each step (see how M3a was done in `docs/PROPOSAL.md` §10.2).
 
-## M5 brief: retention purge and privacy audit
+## M5b brief: summaries that stand on their own
 
-Spec: §6 (privacy design), §11 K, the M5 row of §10, and "Railway request logs" in §6's table.
-Done when (§10): §11 K is green, and a manual pass over Railway's logs shows no content.
+Spec: §10.3 (measurements, direction, metrics, blind read) and the M5b row of §10. Done when
+(§10): the §10.3 metrics are met, the owner signs off on the summaries of 5 reference videos,
+and tokens per summary are recorded and the token ceiling (§7) set from them. M5b gates every
+invite.
 
 **What exists.**
-- **Retention is enforced at read time, but nothing is ever deleted.** `/s/<id>` returns 410 once
-  `min(summaries.expires_at, jobs.finished_at + 30 days)` has passed, and the cache lookup in
-  `intake.submit` skips expired rows. But `summaries` rows and `jobs.video_id` stay in the
-  database forever. M5 adds the purge (K1, K2). `test_purged_is_410` in
-  `server/tests/test_summary_page.py` already simulates its effect.
-- Usage columns live on `jobs` and must survive the purge (§5.1). The admin view never selects
-  content columns (G3); M5's admin-response audit re-runs that over every admin route after a
-  purge.
-- **The app's own log** holds only these lines: `started mailer=`, `submit job= user= status=`,
-  `claim job= attempt=`, `complete|fail job=` (`rejected=`), `mail job= attempt= outcome=
-  http=`, `mail job= error=`, `mail loop error=`, `invite|revoke|reissue user=`,
-  `paused|resumed`, `share site= origin= cookie=` and `refused cross_origin site= origin=
-  cookie=` (M4: categories only, never header values).
-- **`ops/audit-http-log`** reads `railway logs --http --json`, masks `/u/<token>` and
-  `/s/<id>`, and flags any path or query that could carry a URL, ID or title. Through M4 it
-  flagged nothing. Railway's HTTP log records `path`, `clientUa` and `srcIp`, and no Referer
-  or body.
-- The Mac worker removes `.work/<job>/` at job end (F1–F3), and its log has no content (F15).
+- **The engine:** `prompts/summarize.md` (two passes: a claim inventory, then the summary), run
+  by `worker` and `drain` with the same flags (D8: Opus, high effort, `drain`'s
+  `--disallowed-tools`, plus `--no-session-persistence --output-format json` in the worker).
+  `tests/test_worker.py` checks the worker's flags against `drain` and `vsum` (F13), so they
+  can't drift apart by accident.
+- **The A/B harness from M0:** `tools/ab/run_one.sh <arm> <video_id> <run>` and
+  `tools/ab/score.py <dir>`. Outputs go to `.cache/ab/` (gitignored). M0's run, its blind-read
+  page and key are in `.cache/ab/2026-10-15/`. The 5 videos in `score.py` have cached bundles in
+  `.cache/`. Both scripts hard-code this Mac's repo path.
+- **M0's result** (`docs/m0-ab.md`): the lean flags (`--tools "" --setting-sources ""
+  --strict-mcp-config`, a one-line system prompt, an empty cwd) cut API-equivalent cost 29%
+  ($0.65 → $0.46) with no measured quality loss, and made input tokens predictable. Sonnet cost
+  54% less again but judged worse. The owner skipped the blind read: all three arms "still
+  leave something lacking", which is what M5b is for.
+- **What reads the output:** `lib/clean.py` (front matter check, fence strip, `added`),
+  `server/protocol.py` `front_matter()` (title required; 422 otherwise), `lib/week.py` (the week
+  pages and the server's summary page: front matter fields, backticked timestamps become jump
+  chips, "What the comments contest" gets its own styling), `server/render.py` (chips link into
+  the video). The conventions are in `CLAUDE.md`.
+- **Production data so far:** 41 summaries in `out/` (W38–W40) that §10.3 measured, plus the
+  owner's few test requests on the server.
 
 **Things to get right:**
-- **The purge (K1, K2).** Delete `summaries` whose `expires_at <= now`, and null `jobs.video_id`
-  once a job's 30 days are up. Only touch `done` and `failed` jobs: a `queued` job can be older
-  than 30 days if the Mac was off, and the worker needs its video ID. Run it in one `BEGIN
-  IMMEDIATE` transaction so it is safe beside a submit (K2), and from a loop in the app, the way
-  `mail_loop` runs. Admin totals and every usage column must be unchanged after it (K1).
-- **The owner can read capability URLs in Railway's HTTP log.** This is the biggest finding for
-  M5. Every summary view logs `/s/<public_id>`, and opening that path shows the friend's
-  summary. So "the owner never sees content" holds only while the owner doesn't open a path from
-  their own log. The same goes for `/u/<token>`, which logs anyone in as that friend. Options:
-  move the capability into a `#fragment` (`/s#<id>`, with a static script fetching it by POST,
-  like `/add`), shorten Railway's log retention, or accept it and say so on `/about`. **This is
-  the owner's call: ask before building.**
-- **Other places content lives** (§6's table): Resend's dashboard keeps titles (D1). Check
-  Resend's retention for this plan, and whether logs can be shortened. Browsers keep `/u/<token>`
-  in their history wherever the invite link was opened (seen in M4). The friend's own inbox and
-  PDFs are theirs.
-- **K3** captures app logs over a full submit → claim → complete → email cycle, and greps for
-  the canary title, the video ID and `youtube`. **K4**: nothing under the repo is written outside
-  gitignored paths. **K5** was done in M0.
-- **Scanners arrived within hours** of the hostname going live: phishing-kit paths and
-  `/.git/HEAD`, from Android-like user-agents. All 404. Expect them in any manual log pass;
-  they're noise, not friends.
-- **Don't invite anyone.** M5b still gates that.
+- **Editing the prompt on `main` is a production deploy, with no `railway up`.** The worker's
+  LaunchAgent runs `worker` from this checkout, and `drain` reads the same prompt, so a commit
+  to `prompts/summarize.md` changes the next summary for friends and for the weekly digest at
+  once. Develop the candidate prompt in another file (for example `prompts/summarize-m5b.md`,
+  run only by `tools/ab/`), and switch with one commit after the owner signs off. Whether
+  `drain` switches too, or keeps the old prompt until M6 retires it, is the owner's call: ask.
+- **Spending tokens is billing.** Each summary costs about $0.50 API-equivalent of the owner's
+  subscription, plus the naive-reader judge calls. Estimate the A/B's total (arms × videos ×
+  runs) and ask before running it. M0 ran 30 calls.
+- **Split the two jobs (§10.3):** the front matter and verdict block judge the video; the body
+  explains the subject to someone who will never watch it. Attribute claims to people, never to
+  "the video" or "the host". The timestamp variants to A/B are listed in §10.3.
+- **Metrics:** extend `score.py` with timestamped-sentence share and video-narrating-sentence
+  share (body only, before the comments section), a naive-reader judge (a separate call that
+  sees only the body), and claim coverage counted from pass 1, not from timestamps. Check
+  where pass 1 ends up in the output first: the stored summary is what `clean.py` keeps.
+- **If the format changes, everything downstream changes with it.** Moving timestamps out of the
+  body, or adding a "Jump to" list, touches `lib/week.py` (frozen behaviour has 17 tests in
+  `tests/test_render.py`), `server/render.py`'s chip links, `lib/clean.py`, `front_matter()`,
+  and the conventions in `CLAUDE.md`. Keep the front matter fields single-line and the
+  closing heading unchanged unless the owner agrees otherwise.
+- **Don't use word-compression ratio as a fluff signal** (README, CLAUDE.md).
+- **The blind read is the owner's.** 3 videos, production against the candidate, "would this
+  make sense if I'd never heard of the video?" Build the page with the arms shuffled and the
+  key kept apart, as M0 did, and don't tell the owner which is which until they've scored.
+- **Fold in the M0 lean flags** if they still hold with the new prompt. That changes F13's argv:
+  update the worker, `drain` (if it switches) and the test together.
+- **Then set the token ceiling** (§7, `global_daily_token_ceiling`, in `/admin`'s settings
+  form) from the measured tokens per summary. It sums all four token types over a rolling
+  24 h (`server/README.md`).
+- **Failure emails carry no title,** because the worker reports none (H2). The fix sends the
+  yt-dlp title with `fail` and touches the worker, so it was held for M5b. It also means the
+  server stores a title for a failed job: it must be purged like the rest (`retention.py`), and
+  K3 must still pass.
+- **Don't invite anyone** until the owner signs off on M5b.
+
+**What M5 learned, for whoever touches the server or the logs:**
+- **`railway logs` reads only the newest deployment,** and `-n` alone returns only the newest
+  few lines (capped at 5000). Use `--since`/`--until` per deployment ID, or just
+  `ops/audit-logs`. In zsh, a flag list in one variable isn't word-split: use `bash -c`.
+- **Railway's HTTP log has no query strings, Referer or bodies.** Its fields: path, method,
+  status, user-agent, client IP, timings, Railway IDs, `responseDetails` (empty, or "Blocked by
+  Railway WAF").
+- **SQLite keeps deleted text in free pages** unless `secure_delete` is on. A test reads the
+  file's bytes to prove the purge removed it. `server.cli purge --vacuum` cleans a pre-M5 file.
+- **The app log is audited against a list of known lines** (`ops/audit-app-log`). A new log
+  line needs its pattern added there, or the audit, and K3, flag it. That is the point.
+- **Retention elsewhere can't be shortened:** Railway's logs (up to 90 days, no setting) and
+  Resend (30 days on every plan below Enterprise). Both hold summary links; `/about` says so.
+- **Railway volume backups** would keep summaries past 30 days. The CLI can't see them. The
+  owner checks the dashboard once (`ops.local.txt` §13).
 
 **What M3 and M4 learned, for whoever touches the server:**
 - **Try every form and route from a real browser against production.** With `Referrer-Policy:

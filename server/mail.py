@@ -160,6 +160,13 @@ def deliver_pending(conn, mailer, origin, now):
             (jid,)).fetchone()
         summary = conn.execute('SELECT * FROM summaries WHERE video_id = ?',
                                (job['video_id'],)).fetchone()
+        if job['status'] == 'done' and (summary is None or summary['expires_at'] <= now):
+            # Purged or expired before the email went out: there is nothing left to link to,
+            # and the failure email would be untrue.
+            conn.execute("UPDATE jobs SET email_status = 'failed', email_not_before = NULL "
+                         'WHERE id = ?', (jid,))
+            log.info('mail job=%s attempt=%s outcome=expired', jid, job['email_attempts'])
+            continue
         try:
             outcome = mailer.send(job['email'], *compose(job, summary, origin),
                                   key=f'job-{jid}-{job["created_at"]}')

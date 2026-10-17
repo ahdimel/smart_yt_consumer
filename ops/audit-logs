@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""The M5 log pass in one command: every deployment's HTTP and app logs, through both audits.
+
+    ops/audit-logs [since-iso]          # default: 2026-10-16T12:00:00Z, before the first deploy
+
+What `railway logs` does that this works around (M5, CLI 2026-10): it reads only the newest
+deployment unless given a deployment ID; `-n` alone returns only the newest few lines and refuses
+more than 5000; `--since`/`--until` reach back. So each deployment is read in 3-hour windows of
+up to 5000 lines, and a window that hits the cap is reported, because lines would be missing.
+Removed deployments are read too: their logs stay until Railway drops them. The worker's
+/worker/claim polls are filtered out of the HTTP log: they are most of it and carry nothing.
+Deployment IDs are fetched at run time and never printed or written anywhere.
+"""
+import datetime as dt
+import json
+import os
+import subprocess
+import sys
+
+OPS = os.path.dirname(os.path.abspath(__file__))
+CAP = 5000
+STEP = dt.timedelta(hours=3)
+since = sys.argv[1] if len(sys.argv) > 1 else '2026-10-16T12:00:00Z'
+
+
+def railway(*args):
+    r = subprocess.run(['railway', *args], capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f'railway {args[0]} failed (exit {r.returncode})')   # stderr may name IDs
+    return r.stdout
+
+
+def iso(t):
+    return t.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+
+deployments = json.loads(railway('deployment', 'list', '--service', 'server', '--json',
+                                 '--limit', '1000'))
+start = dt.datetime.strptime(since, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc)
+now = dt.datetime.now(dt.timezone.utc)
+http, app, capped = [], [], 0
+for d in deployments:
+    n_http = n_app = 0
+    t = start
+    while t < now:
+        window = ('--since', iso(t), '--until', iso(t + STEP), '-n', str(CAP))
+        h = [line for line in railway('logs', d['id'], '--service', 'server', '--http', '--json',
+                                      *window, '--filter=-@path:/worker/claim').splitlines()
+             if line.startswith('{')]
+        a = [line for line in railway('logs', d['id'], '--service', 'server', '--json',
+                                      *window).splitlines() if line.startswith('{')]
+        capped += (len(h) >= CAP) + (len(a) >= CAP)
+        http += h
+        app += a
+        n_http, n_app = n_http + len(h), n_app + len(a)
+        t += STEP
+    print(f'deployment from {d["createdAt"][:16]} ({d["status"].lower()}): '
+          f'{n_http} HTTP lines, {n_app} app lines')
+
+print(f'\n== app log ({len(app)} lines)', flush=True)
+subprocess.run([os.path.join(OPS, 'audit-app-log')], input='\n'.join(app) + '\n', text=True)
+print(f'\n== HTTP log ({len(http)} lines, worker polls left out)', flush=True)
+out = subprocess.run([os.path.join(OPS, 'audit-http-log')], input='\n'.join(http) + '\n',
+                     capture_output=True, text=True).stdout
+print(out.rstrip().rsplit('\n', 1)[-1])          # the flag count; run audit-http-log for lines
+for line in out.splitlines():
+    if line.endswith('<-- FLAG'):
+        print(line)
+if capped:
+    print(f'\nWARNING: {capped} window(s) hit {CAP} lines; shorten STEP and run again')

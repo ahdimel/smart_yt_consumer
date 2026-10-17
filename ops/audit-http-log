@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Audit Railway's HTTP log (M4; where M5's log audit starts).
+"""Audit Railway's HTTP log (M4). For every deployment's log at once, use ops/audit-logs (M5).
 
 Reads `railway logs --http --json` on stdin. Prints each request with `/u/<token>` and
 `/s/<id>` masked, and flags any line whose path or query could carry a video URL, ID or title
 (§11 J5). A flagged path is printed redacted, so the audit never echoes the content it found.
 
     railway logs --service server --http --json -n 500 | ops/audit-http-log [since-iso]
+
+Seen in M5: Railway's `path` field never includes the query string, and no record has a Referer
+or a body. The fields are path, method, status, clientUa, srcIp, timings and Railway's own IDs.
 """
 import json
 import re

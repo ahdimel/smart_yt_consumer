@@ -2,8 +2,8 @@
 
 The Railway app from `docs/PROPOSAL.md` §5.1: intake, quotas, the shared cache, the worker
 protocol, the admin view (M1), delivery: the summary page and Resend email (M3), and the intake
-modalities and intro page (M4). Tested against §11 A–E and G–J, plus M. It has no retention
-purge yet (M5).
+modalities and intro page (M4), and the retention purge (M5). Tested against §11 A–E and G–K,
+plus M.
 
 ## Run and test
 
@@ -65,12 +65,13 @@ and 429 with no header at all. Every request was keyed on the real client IP, so
 | `admin.py` | Usage aggregation and the admin page. Never selects content columns |
 | `auth.py` | Token hashing, the per-IP miss limiter, the Origin check |
 | `mail.py` | Outbox, Resend transport and the copy: exactly one email per finished job |
+| `retention.py` | The purge: summaries and job↔video links go after 30 days, usage stays (M5) |
 | `render.py`, `summary.html` | The summary page, rendered from stored markdown by `lib/week.py` |
 | `pages.py` | The friend-facing pages: home, `/add`, the intro page's layout, refusal pages |
 | `intro.py` | **The words** of `/welcome` and `/about`, as HTML fragments. The owner's to rewrite |
 | `static/` | `app.css`; `summary.css` and `summary.js` (Save as PDF); `paste.js` (Paste and summarize); `add.js` (the bookmarklet page); the icons, drawn by `ops/make-icons` |
 | `app.py` | Routes and the credential each one accepts |
-| `cli.py` | `invite` (the first admin), `reissue` (a lost admin link), `test-email` |
+| `cli.py` | `invite` (the first admin), `reissue` (a lost admin link), `test-email`, `purge [--vacuum]` |
 
 ## Choices the proposal left open
 
@@ -123,9 +124,10 @@ Made while building M1. Revisit any of them by changing the code and its test.
   after `lib/week.py` renders, so the week pages drain publishes are unchanged.
 - **The summary page uses system fonts.** The week page loads Google Fonts, which the CSP
   forbids, and which would tell Google who reads what.
-- **For M5's log audit:** Railway's edge logs request paths, so invite tokens (`/u/<token>`)
-  and summary capability IDs (`/s/<public_id>`) appear in Railway's HTTP logs, which the owner
-  can read. The app's own logs contain neither, and no addresses or titles.
+- **Railway's edge logs request paths,** so invite tokens (`/u/<token>`) and summary
+  capability IDs (`/s/<public_id>`) appear in Railway's HTTP logs, which the owner can read.
+  The app's own logs contain neither, and no addresses or titles. M5 settled what to do about
+  it (below).
 
 ## Intake and the intro page (M4)
 
@@ -159,8 +161,48 @@ Choices made while building M4, and what production showed:
   and both pass. On iOS every browser app has its own cookies. Safari's Add to Home Screen carries
   the login into the icon.
 
+## Retention and privacy (M5)
+
+Choices made while building M5, and what the audit of production found:
+
+- **The purge** (`retention.py`) deletes `summaries` whose `expires_at` has passed and nulls
+  `jobs.video_id` once a `done` or `failed` job is 30 days past `finished_at`. `queued` and
+  `running` jobs keep theirs at any age: the worker needs it, and a job waits as long as the
+  Mac is off. One `BEGIN IMMEDIATE` transaction (K2). It runs from a loop in the app, once at
+  start and then hourly, with or without a mailer. It logs `purge summaries=<n> jobs=<n>`, and
+  only when it removed something. No usage column is touched, and admin totals are identical
+  across a purge (K1, and G3 re-run over every admin route after one).
+- **Deleted means gone from the file.** `db.connect()` sets `PRAGMA secure_delete = ON`, so freed
+  pages are zeroed, and the purge truncates the WAL after each pass. A test reads the database
+  file's bytes and finds no canary after a purge. Without `secure_delete` the text stayed in
+  free pages, so pages freed before M5 (cache refreshes overwrite `md`) may still hold some:
+  `server.cli purge --vacuum` rewrites the file once (`ops.local.txt` §13).
+- **An email that outlives its summary is dropped.** If a done job's summary is gone or expired
+  by the time its email is sent, nothing is sent, `email_status` becomes `failed`, and the log
+  says `outcome=expired`. Before, it would have sent the "couldn't summarize" email.
+- **Capability links in Railway's HTTP log: accepted and disclosed** (the owner's call,
+  2026-10-17). Opening a `/s/<id>` from the log shows that summary; a `/u/<token>` signs in as
+  that friend. Options considered: moving both into a `#fragment` (`/s#<id>`, posted by a static
+  script, like `/add`), or shortening Railway's log retention. Retention can't be shortened:
+  Railway's docs give 7 days on Hobby, 30 on Pro and 90 on Enterprise, with no setting, and a
+  Railway forum answer says logs are stored for 90 days whatever the plan, the plan only limiting
+  how far back you can query. The privacy block on `/about` and `/welcome` now says this,
+  in the draft copy (`intro.py`).
+- **Resend keeps each email, title and link, for 30 days** on every plan below Enterprise, with
+  no setting. That is a second place the owner could read a summary link, and `/about` names it.
+- **What Railway's HTTP log holds** (all 7 deployments to 2026-10-17, 627 requests besides
+  the worker's polls): path without its query string, method, status, user-agent, client IP,
+  timings and Railway's own IDs. No Referer, no body. `responseDetails` was empty except for
+  two "Blocked by Railway WAF". 366 of the 627 were scanners getting 404.
+- **The app log is checked against a list of known lines** (`ops/audit-app-log`), not grepped
+  for known leaks: anything new is flagged, by line number only. K3 runs the full cycle under
+  uvicorn in a subprocess, the way the Dockerfile runs it, and feeds its whole output through
+  the audit. `ops/audit-logs` does the manual pass over every deployment in one command.
+- **K3, K4** live in `tests/test_privacy.py` (the server venv runs them). K4 compares every file
+  git doesn't ignore before and after a full cycle run from the repo root, minus `out/` and
+  `queue/`, which drain writes while the tests run.
+
 ## Not yet built
 
 M4 leftovers: Android verified on a real device (`HANDOFF.md`, "Open from M4"). The status and
 history page (§11 L) is still a minimal list on `/`.
-M5: the retention purge (§11 K).

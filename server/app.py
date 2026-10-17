@@ -29,7 +29,7 @@ from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
-from . import admin, auth, codes, db, intake, mail, pages, protocol, render, urls, users
+from . import admin, auth, codes, db, intake, mail, pages, protocol, render, retention, urls, users
 from .config import RETENTION, Settings
 
 log = logging.getLogger('server')
@@ -175,12 +175,27 @@ def create_app(settings=None, clock=None, mailer=None):
             except Exception as e:
                 log.warning('mail loop error=%s', type(e).__name__)
 
+    def purge():
+        with connect() as conn:
+            retention.purge(conn, clock())
+
+    async def purge_loop():
+        # D2: one pass at start, then hourly. With or without a mailer.
+        while True:
+            try:
+                await run_in_threadpool(purge)
+            except Exception as e:
+                log.warning('purge error=%s', type(e).__name__)
+            await asyncio.sleep(retention.LOOP_SECONDS)
+
     @asynccontextmanager
     async def lifespan(app):
-        task = asyncio.create_task(mail_loop()) if mailer is not None else None
+        tasks = [asyncio.create_task(purge_loop())]
+        if mailer is not None:
+            tasks.append(asyncio.create_task(mail_loop()))
         log.info('started mailer=%s', 'resend' if mailer is not None else 'none')
         yield
-        if task:
+        for task in tasks:
             task.cancel()
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)

@@ -1,7 +1,8 @@
 """§11 G: the admin view shows usage and never content."""
 import re
 
-from server.config import DAY
+from server import retention
+from server.config import DAY, RETENTION
 
 from .conftest import CANARY, ORIGIN, summary_md, url, vid
 
@@ -56,20 +57,15 @@ def test_token_columns_and_cost_label(env):                                     
     assert 'cost_usd_api_equivalent' in data['users'][0]['windows']['all']
 
 
-def test_no_content_in_any_admin_response(env):                                  # G3
-    admin, a, b = env.user(admin=True), env.user(), env.user()
-    publics = []
-    for n, who in ((1, a), (2, b), (3, a)):
-        publics.append(env.submit(who, url(n)).json()['id'])
-    env.summarize(md=summary_md(title=f'{CANARY} title', verdict=f'{CANARY}-verdict',
-                                body=f'{CANARY}-body'))
-    env.fail(env.claimed(), 'no_captions')
-    lease = env.claimed()
-    env.client.post(f'/worker/jobs/{lease["job_id"]}/complete', headers=env.W,
-                    json={'lease_id': lease['lease_id'], 'md': f'{CANARY} broken'})
-    publics.append(env.submit(b, url(1)).json()['id'])                  # cache hit
+# Every admin route. A new one fails G3 until it is added to admin_responses() below.
+ADMIN_ROUTES = {'/admin', '/admin/usage.json', '/admin/pause', '/admin/resume', '/admin/settings',
+                '/admin/invites', '/admin/users/{uid}/limits', '/admin/users/{uid}/reissue',
+                '/admin/users/{uid}/revoke'}
 
-    responses = [
+
+def admin_responses(env, admin, a, b):
+    """One request to every admin route, reads first and last."""
+    return [
         env.client.get('/admin', headers=admin.cookie),
         env.client.get('/admin/usage.json', headers=admin.cookie),
         post(env, admin, '/admin/pause'),
@@ -82,13 +78,41 @@ def test_no_content_in_any_admin_response(env):                                 
         post(env, admin, f'/admin/users/{b.id}/reissue'),
         post(env, admin, f'/admin/users/{a.id}/revoke'),
         env.client.get('/admin', headers=admin.cookie),
+        env.client.get('/admin/usage.json', headers=admin.cookie),
     ]
+
+
+def test_no_content_in_any_admin_response(env):                                  # G3, M5
+    admin, a, b = env.user(admin=True), env.user(), env.user()
+    publics = []
+    for n, who in ((1, a), (2, b), (3, a)):
+        publics.append(env.submit(who, url(n)).json()['id'])
+    env.summarize(md=summary_md(title=f'{CANARY} title', verdict=f'{CANARY}-verdict',
+                                body=f'{CANARY}-body'))
+    env.fail(env.claimed(), 'no_captions')
+    lease = env.claimed()
+    env.client.post(f'/worker/jobs/{lease["job_id"]}/complete', headers=env.W,
+                    json={'lease_id': lease['lease_id'], 'md': f'{CANARY} broken'})
+    publics.append(env.submit(b, url(1)).json()['id'])                  # cache hit
+
+    assert {r.path for r in env.app.routes if r.path.startswith('/admin')} == ADMIN_ROUTES
     forbidden = [CANARY, 'youtube', 'youtu.be', *(vid(n) for n in (1, 2, 3)), *publics]
-    for r in responses:
-        assert r.status_code in (200, 303)
-        for word in forbidden:
-            assert word not in r.text, (r.request.url, word)
-            assert word not in str(r.headers), (r.request.url, word)
+
+    def audit(responses):
+        for r in responses:
+            assert r.status_code in (200, 303)
+            for word in forbidden:
+                assert word not in r.text, (r.request.url, word)
+                assert word not in str(r.headers), (r.request.url, word)
+
+    audit(admin_responses(env, admin, a, b))
+    # M5: and again once the purge has run, with the same totals as just before it.
+    env.clock.advance(RETENTION + 1)
+    totals = env.client.get('/admin/usage.json', headers=admin.cookie).json()
+    with env.db() as conn:
+        assert retention.purge(conn, env.clock()) == (1, 3)
+    assert env.client.get('/admin/usage.json', headers=admin.cookie).json() == totals
+    audit(admin_responses(env, admin, b, a))
 
 
 def test_invite_revoke_limits_reissue(env):                                      # G4

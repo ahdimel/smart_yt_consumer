@@ -250,10 +250,11 @@ Where content exists, and for how long:
 
 | Place | Content | Lifetime |
 |---|---|---|
-| Railway SQLite `summaries`, `jobs.video_id` | Yes | Purged after 30 days (D2) |
-| Railway request logs | No — content only in POST bodies and fragments | — |
-| Railway app logs | No — app never logs bodies, URLs or titles | — |
-| Resend dashboard | Video title only (D1) | Resend's retention |
+| Railway SQLite `summaries`, `jobs.video_id` | Yes | Purged after 30 days (D2); zeroed in the file, not just unlinked (M5) |
+| Railway request logs | No content: it is only ever in POST bodies and fragments. But the paths include the capability links `/u/<token>` and `/s/<id>`, which the owner can read and open (M5: accepted, and said on `/about`) | Railway's: 7 days (Hobby) to 90, not settable. A `/s/` link stops working after 30 days |
+| Railway app logs | No — app never logs bodies, URLs or titles; checked against a list of known lines (M5) | — |
+| Resend dashboard | Video title and the summary link (D1) | 30 days on every plan below Enterprise, not settable |
+| A browser's history | The invite link, and any summary link opened | The browser's |
 | Friend's inbox | Title + link | Theirs to keep; the link dies after 30 days |
 | Mac `.work/<job>/` | Yes, during the job | Deleted at job end |
 | Mac `~/.claude/projects/…` | No — `--no-session-persistence` | — |
@@ -261,7 +262,7 @@ Where content exists, and for how long:
 | git | No | — |
 
 This is **policy privacy, not cryptographic privacy**. The owner could open the database on
-purpose. The guarantee is that nothing surfaces content to the owner in normal operation, and
+purpose, or open a summary link from Railway's request log or Resend's dashboard (M5). The guarantee is that nothing surfaces content to the owner in normal operation, and
 that it is gone after 30 days. The documentation for friends should say exactly that.
 
 The shared cache leaks nothing between friends. A cache hit looks identical to a fresh
@@ -327,7 +328,7 @@ until they pass.
 | **M3a** ✅ | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | Done 2026-10-16: every record answers on 8.8.8.8, 1.1.1.1 and Namecheap's own server; Railway serves HTTPS on `desloppify.ahdimel.com` (CNAME and verify TXT added in M3); Resend green; test mail in the inbox at Gmail and Proton |
 | **M3** ✅ | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Done 2026-10-16: §11 H, I green; email from production passes SPF, DKIM and DMARC at Gmail and Proton; the Mac worker completed one real job end to end against production (`HANDOFF.md`) |
 | **M4** ✅ | **Intake modalities and intro page.** PWA manifest and share target, bookmarklet page, a paste button in place of the iOS Shortcut (§5.2), `/welcome` and `/about` (§5.4), with the copy rewritten by the owner | Done 2026-10-17 except two open items: §11 J, M green; verified against production on an iPhone (iOS 26: Safari, Firefox) and a Mac (Firefox). **Open:** Android on a real device (§12), and the owner's rewrite of the draft copy (`HANDOFF.md`) |
-| **M5** | **Retention and privacy audit.** Purge job, log audit, admin-response audit | §11 K green; a manual pass over Railway logs shows no content |
+| **M5** ✅ | **Retention and privacy audit.** Purge job, log audit, admin-response audit | Done 2026-10-17: §11 K green (`server/tests/test_retention.py`, `tests/test_privacy.py`); G3 re-run over every admin route after a purge; a manual pass over the HTTP and app logs of all 7 production deployments shows no content (`ops/audit-logs`). Capability links in the HTTP log: accepted and disclosed (owner's call). **Not deployed yet:** goes out with the owner's intro rewrite (`HANDOFF.md`) |
 | **M5b** | **Summarization revisit — gate before any invite.** Rewrite the summaries so they stand alone for someone who has never seen the video (§10.3). A/B with `tools/ab/` against today's production, including a blind read. Fold in the M0 lean flags if they still hold | §10.3 metrics met; the owner signs off on the summaries of 5 reference videos; tokens per summary recorded and the token ceiling (§7) set from them |
 | **M6** | **Cutover.** Retire `drain`, `publish` and the git queue; update README, CLAUDE.md, HANDOFF; invite friends | Old LaunchAgent unloaded; owner and one friend each complete a request in production |
 
@@ -665,8 +666,8 @@ Reject with `invalid_url`:
 |---|---|---|
 | K1 | Purge at day 30 + 1 s | `summaries` row deleted; `jobs.video_id` nulled; usage columns intact; admin totals unchanged |
 | K2 | Purge is idempotent and safe to run concurrently with a submit |  |
-| K3 | Captured app logs for a full submit → claim → complete → email cycle contain no canary title, video ID or YouTube URL |  |
-| K4 | No file under the repo is written by the server or worker outside gitignored paths |  |
+| K3 | Captured app logs for a full submit → claim → complete → email cycle contain no canary title, video ID or YouTube URL | The server's whole output under uvicorn, and the worker's; every line a known kind (M5) |
+| K4 | No file under the repo is written by the server or worker outside gitignored paths | Every file git doesn't ignore is unchanged after a cycle run from the repo root (M5) |
 | K5 | A real `claude` run with the production flags creates no new file under `~/.claude/projects/` (manual check, M0) |  |
 
 ### L. Status and history page
