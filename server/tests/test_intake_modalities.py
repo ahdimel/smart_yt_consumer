@@ -163,6 +163,12 @@ def test_manifest_declares_a_post_share_target(env):                            
     assert any(i['purpose'] == 'maskable' for i in m['icons'])
 
 
+def test_favicon(env):
+    r = env.client.get('/favicon.ico')
+    assert r.status_code == 200 and r.headers['content-type'] == 'image/png'
+    assert png_size(r.content) == (192, 192)
+
+
 def test_manifest_linked_from_signed_in_pages_only(env):                        # J4, M3
     u = env.user()
     for path in ('/', '/welcome', '/about'):

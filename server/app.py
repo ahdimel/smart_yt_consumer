@@ -265,6 +265,11 @@ def create_app(settings=None, clock=None, mailer=None):
             raise HTTPException(404)
         return Response((STATIC / name).read_bytes(), media_type=STATIC_TYPES[name])
 
+    @app.get('/favicon.ico')
+    def favicon():
+        # Browsers ask for it on pages that name no icon, such as the summary page.
+        return Response((STATIC / 'icon-192.png').read_bytes(), media_type='image/png')
+
     @app.get('/manifest.webmanifest')
     def manifest():
         return JSONResponse(MANIFEST, media_type='application/manifest+json')

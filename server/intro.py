@@ -59,6 +59,8 @@ reaches me too.</p>
 # §5.4 section 7. Shown above everything on /welcome, last on /about.
 SETUP_HEADING = """
 <h2>How to use it</h2>
+<p>Each browser signs in on its own: open your invite link once in every browser you'll use
+(Safari and Chrome on the same phone count as two).</p>
 <p>When a summary is ready, an email arrives from <strong>$sender</strong> with the video's title
 and a link. <strong>Proton Mail files it under Newsletters</strong>, so look there for the first
 one, and add the address to your contacts so later ones reach your inbox. Each summary stays up
