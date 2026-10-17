@@ -85,7 +85,8 @@ SETUP = {
   <li>Open your page here and tap <strong>Paste and summarize</strong>. Your iPhone asks
       first: tap the small <strong>Paste</strong> bubble.</li>
 </ol>
-<p>To keep the page handy, bookmark it in Safari.</p>
+<p>To keep it one tap away: on your page in Safari, tap <strong>Share</strong>, then
+<strong>Add to Home Screen</strong>. The icon opens your page, already signed in.</p>
 """),
     'desktop': ('Computer', """
 <ol>
