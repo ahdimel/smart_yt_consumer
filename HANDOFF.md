@@ -155,7 +155,7 @@ invite.
 - **Retention elsewhere can't be shortened:** Railway's logs (up to 90 days, no setting) and
   Resend (30 days on every plan below Enterprise). Both hold summary links; `/about` says so.
 - **Railway volume backups** would keep summaries past 30 days. The CLI can't see them. The
-  owner checks the dashboard once (`ops.local.txt` §13).
+  owner checked the dashboard on 2026-10-17: none. Don't turn them on without purging them too.
 
 **What M3 and M4 learned, for whoever touches the server:**
 - **Try every form and route from a real browser against production.** With `Referrer-Policy:
