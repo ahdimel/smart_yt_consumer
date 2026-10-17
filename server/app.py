@@ -4,11 +4,14 @@ Run locally:  server/.venv/bin/uvicorn server.app:create_app --factory --no-acce
 (--no-access-log matters: access lines carry paths, and /u/<token> is a path.)
 
 Each route accepts exactly one kind of credential (§8):
-  user cookie       /, /welcome, /about, and /api/requests without an Authorization header
+  user cookie       /, /welcome, /about, /add, /share, and /api/requests without an
+                    Authorization header
   user bearer       /api/requests with an Authorization header (iOS Shortcut)
   admin cookie      /admin*
   worker bearer     /worker/*
   capability        /s/<public_id>: the unguessable ID is the credential (D3)
+  none              /healthz, /static/*, /manifest.webmanifest (browsers fetch a linked manifest
+                    without cookies, and the hostname already names the app)
 """
 import asyncio
 import json
@@ -16,6 +19,7 @@ import logging
 import sys
 import time
 from contextlib import asynccontextmanager, closing
+from email.utils import parseaddr
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -37,7 +41,27 @@ COMPLETE_LIMIT = 1024 * 1024
 SMALL_LIMIT = 16 * 1024
 STATIC = Path(__file__).with_name('static')
 STATIC_TYPES = {'app.css': 'text/css', 'summary.css': 'text/css',
-                'summary.js': 'text/javascript'}
+                'summary.js': 'text/javascript', 'paste.js': 'text/javascript',
+                'add.js': 'text/javascript', 'icon-192.png': 'image/png',
+                'icon-512.png': 'image/png', 'icon-maskable-512.png': 'image/png',
+                'apple-touch-icon.png': 'image/png'}
+# The Android share target (§5.2, §11 J4). Chrome POSTs the shared fields form-encoded to /share,
+# where the YouTube app puts the link in `text`. Installing needs a name, start_url, display and
+# 192/512 icons; since Chrome 108 (WebAPK: 109) no service worker.
+MANIFEST = {
+    'id': '/', 'name': pages.APP_NAME, 'short_name': pages.APP_NAME, 'start_url': '/',
+    'scope': '/', 'display': 'standalone', 'background_color': '#fbfbf9',
+    'theme_color': '#2a5db0',
+    'icons': [
+        {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+        {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+        {'src': '/static/icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png',
+         'purpose': 'maskable'},
+    ],
+    'share_target': {'action': '/share', 'method': 'POST',
+                     'enctype': 'application/x-www-form-urlencoded',
+                     'params': {'title': 'title', 'text': 'text', 'url': 'url'}},
+}
 # What a browser form submission shows on the home page, keyed by the ?m= code.
 MESSAGES = {
     'queued': 'Queued. You’ll get an email when it’s ready.',
@@ -48,6 +72,14 @@ MESSAGES = {
     'quota_weekly': "You've used all of this week's requests.",
     'busy': 'The summarizer is at its daily limit. Try again later.',
     'paused': 'Summaries are paused for now. Try again later.',
+}
+# What a refused browser form shows when it isn't one of MESSAGES: a page, never JSON.
+PROBLEMS = {
+    400: "That couldn't be read. Paste the link on your page instead.",
+    403: 'That came from another site, so it was refused. Paste the link on your page instead.',
+    413: 'That was too long to be a YouTube link.',
+    415: "That couldn't be read. Paste the link on your page instead.",
+    429: 'Too many attempts. Try again in a few minutes.',
 }
 ERRORS = {400: 'bad_request', 401: 'unauthorized', 403: 'forbidden', 405: 'method_not_allowed',
           409: 'conflict', 413: 'too_large', 415: 'unsupported_media_type', 422: 'invalid',
@@ -187,8 +219,8 @@ def create_app(settings=None, clock=None, mailer=None):
         token = request.cookies.get(auth.COOKIE)
         return lookup(conn, request, token) if token else None
 
-    def private(request):
-        resp = HTMLResponse(pages.bare(pages.PRIVATE))
+    def private(request, status=200):
+        resp = HTMLResponse(pages.bare(pages.PRIVATE), status)
         if auth.COOKIE in request.cookies:
             resp.delete_cookie(auth.COOKIE, path='/')
         return resp
@@ -231,7 +263,11 @@ def create_app(settings=None, clock=None, mailer=None):
     def static(name: str):
         if name not in STATIC_TYPES:
             raise HTTPException(404)
-        return Response((STATIC / name).read_text(), media_type=STATIC_TYPES[name])
+        return Response((STATIC / name).read_bytes(), media_type=STATIC_TYPES[name])
+
+    @app.get('/manifest.webmanifest')
+    def manifest():
+        return JSONResponse(MANIFEST, media_type='application/manifest+json')
 
     @app.get('/s/{public_id}')
     def summary_page(public_id: str):
@@ -288,29 +324,44 @@ def create_app(settings=None, clock=None, mailer=None):
                 return private(request)
             conn.execute('UPDATE users SET welcomed_at = ? WHERE id = ? AND welcomed_at IS NULL',
                          (clock(), user['id']))
-        return HTMLResponse(pages.placeholder('Welcome', 'The intro page arrives in M4.'))
+        return intro_page(request, user, setup_first=True)
 
     @app.get('/about')
     def about(request: Request):
         with connect() as conn:
+            user = cookie_user(conn, request)
+            if user is None:
+                return private(request)
+        return intro_page(request, user, setup_first=False)
+
+    def intro_page(request, user, setup_first):
+        return HTMLResponse(pages.intro_page(
+            user, origin(request), request.headers.get('user-agent'), setup_first,
+            parseaddr(settings.mail_from)[1]))
+
+    @app.get('/add')
+    def add_page(request: Request):
+        """The bookmarklet's landing page. The link is in #fragment, never in path or query (J5);
+        a query string is refused outright, so nobody builds a link that would log one (J7)."""
+        if request.url.query:
+            raise HTTPException(405)
+        with connect() as conn:
             if cookie_user(conn, request) is None:
                 return private(request)
-        return HTMLResponse(pages.placeholder('About', 'The intro page arrives in M4.'))
+        return HTMLResponse(pages.add())
 
-    @app.post('/api/requests')
-    async def submit(request: Request):
-        token = auth.bearer(request)
-        via_cookie = token is None
-        if via_cookie:
+    async def take_request(request, token):
+        """Validate and submit for the bearer `token`, or for the cookie when it is None.
+        Always a JSON response; browser forms turn it into a page with browser_reply()."""
+        if token is None:
             token = request.cookies.get(auth.COOKIE)
             if token and not auth.same_origin(request, settings.public_origin):
+                log.info('refused cross_origin %s', auth.provenance(request, settings.public_origin))
                 return err(403, 'cross_origin')
         if not token:
             return err(401, 'unauthorized')
         raw = await read_body(request, INTAKE_LIMIT)
         text = submitted_text(request, raw)
-        browser_form = via_cookie and request.headers.get('content-type', '').startswith(
-            'application/x-www-form-urlencoded')
 
         def work(conn):
             user = lookup(conn, request, token)
@@ -330,18 +381,45 @@ def create_app(settings=None, clock=None, mailer=None):
             return JSONResponse(job_view(job),
                                 202 if created and job['status'] != 'done' else 200)
 
-        resp = await in_db(work)
-        if not browser_form:
-            return then_mail(resp, request) if resp.status_code in (200, 202) else resp
+        return await in_db(work)
+
+    async def browser_reply(request, pending):
+        """A browser form's outcome as a page (M4 brief): 303 home with a message, the private
+        page when signed out, or a sentence saying why not. Never a JSON body."""
+        try:
+            resp = await pending
+        except HTTPException as e:
+            if e.status_code == 404:
+                raise
+            resp = err(e.status_code, ERRORS.get(e.status_code, 'error'))
         if resp.status_code in (200, 202):
             status = json.loads(resp.body)['status']
             return then_mail(RedirectResponse(
                 f'/?m={"done" if status == "done" else "queued"}', 303), request)
         body = json.loads(resp.body)
         code = body.get('reason') or body['error']
+        if code in MESSAGES:
+            return RedirectResponse(f'/?m={code}', 303)
         if resp.status_code == 401:
-            return resp
-        return RedirectResponse(f'/?m={code}', 303)
+            return private(request, 401)
+        return HTMLResponse(pages.problem(PROBLEMS.get(resp.status_code, PROBLEMS[400])),
+                            resp.status_code)
+
+    @app.post('/api/requests')
+    async def submit(request: Request):
+        token = auth.bearer(request)
+        if token is None and request.headers.get('content-type', '').startswith(
+                'application/x-www-form-urlencoded'):
+            return await browser_reply(request, take_request(request, None))     # the paste box
+        resp = await take_request(request, token)
+        return then_mail(resp, request) if resp.status_code in (200, 202) else resp
+
+    @app.post('/share')
+    async def share(request: Request):
+        """The Android share target (§5.2). A cookie POST that the OS starts, so log which origin
+        headers arrived (categories only, §12): that is how a refusal here gets diagnosed."""
+        log.info('share %s', auth.provenance(request, settings.public_origin))
+        return await browser_reply(request, take_request(request, None))
 
     # ── worker ────────────────────────────────────────────────────────────
 

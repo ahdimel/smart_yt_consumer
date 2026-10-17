@@ -103,3 +103,28 @@ def same_origin(request, public_origin=None):
     want = urlsplit(own_origin(request, public_origin))
     got = urlsplit(origin)
     return (got.scheme, got.netloc.lower()) == (want.scheme, want.netloc.lower())
+
+
+SITES = ('same-origin', 'same-site', 'cross-site', 'none')
+
+
+def provenance(request, public_origin=None):
+    """Which origin evidence a request carried, as categories for the log, never values.
+
+    M3 learned that real browsers send what test clients don't (Origin: null). §12 asks what
+    Chrome sends with an OS share; this line in the app log answers it without recording
+    anything a header could smuggle in.
+    """
+    site = request.headers.get('sec-fetch-site')
+    site = 'absent' if site is None else site if site in SITES else 'other'
+    origin = request.headers.get('origin')
+    if origin is None:
+        origin = 'absent'
+    elif origin == 'null':
+        origin = 'null'
+    else:
+        want = urlsplit(own_origin(request, public_origin))
+        got = urlsplit(origin)
+        origin = 'self' if (got.scheme, got.netloc.lower()) == (want.scheme, want.netloc.lower()) else 'other'
+    cookie = 'yes' if COOKIE in request.cookies else 'no'
+    return f'site={site} origin={origin} cookie={cookie}'

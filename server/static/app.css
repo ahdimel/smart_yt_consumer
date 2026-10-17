@@ -21,3 +21,12 @@ small, .quota { color: var(--muted); }
 .limits input { width: 4.5rem; }
 td form { display: inline-block; }
 @media (max-width: 40rem) { table { display: block; overflow-x: auto; } }
+#paste { margin-left: .25rem; }
+details.setup { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .75rem; margin: .5rem 0; }
+details.setup summary { cursor: pointer; font-weight: 600; }
+details.setup ol { padding-left: 1.25rem; }
+a.bookmarklet { display: inline-block; padding: .2rem .7rem; border: 1px solid var(--accent);
+                border-radius: 999px; text-decoration: none; font-weight: 600; cursor: grab; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
+dt { font-weight: 600; } dd { margin: 0; }
+main > section, main > h1 { max-width: 42rem; }

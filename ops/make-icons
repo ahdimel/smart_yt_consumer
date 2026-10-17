@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Draw the app icons into server/static/ (M4). Stdlib only; rerun after changing the design.
+
+The mark is three bars, long to short: a long video, cut down. `icon-*.png` are rounded squares
+for browsers and the Android launcher ("any"). `icon-maskable-512.png` and `apple-touch-icon.png`
+fill the square, because Android's mask and iOS cut their own corners. The bars stay inside the
+central 60%, the zone a mask never crops.
+"""
+import struct
+import zlib
+from pathlib import Path
+
+OUT = Path(__file__).resolve().parent.parent / 'server' / 'static'
+BG = (0x2a, 0x5d, 0xb0)
+FG = (0xfb, 0xfb, 0xf9)
+SS = 4                                      # supersampling per axis, for smooth edges
+
+# Bars as (left, top, right, bottom) in units of the icon's side.
+BARS = [(0.24, 0.30, 0.76, 0.38), (0.24, 0.46, 0.64, 0.54), (0.24, 0.62, 0.48, 0.70)]
+
+
+def inside_rounded(x, y, radius):
+    """Is (x, y), in units of the side, inside a square with corners of this radius?"""
+    cx = min(max(x, radius), 1 - radius)
+    cy = min(max(y, radius), 1 - radius)
+    return (x - cx) ** 2 + (y - cy) ** 2 <= radius ** 2
+
+
+def in_bar(x, y):
+    for l, t, r, b in BARS:
+        h = (b - t) / 2                      # round the bar ends
+        if t <= y <= b and l + h <= x <= r - h:
+            return True
+        for ex in (l + h, r - h):
+            if (x - ex) ** 2 + (y - (t + b) / 2) ** 2 <= h ** 2:
+                return True
+    return False
+
+
+def draw(size, radius):
+    rows = []
+    n = size * SS
+    for py in range(size):
+        row = bytearray([0])                 # PNG filter type 0
+        for px in range(size):
+            acc = [0, 0, 0, 0]
+            for sy in range(SS):
+                for sx in range(SS):
+                    x = (px * SS + sx + 0.5) / n
+                    y = (py * SS + sy + 0.5) / n
+                    if radius and not inside_rounded(x, y, radius):
+                        continue
+                    c = FG if in_bar(x, y) else BG
+                    acc[0] += c[0]; acc[1] += c[1]; acc[2] += c[2]; acc[3] += 255
+            k = SS * SS
+            a = acc[3] // k
+            if a:
+                row += bytes([acc[0] * 255 // acc[3], acc[1] * 255 // acc[3],
+                              acc[2] * 255 // acc[3], a])
+            else:
+                row += b'\0\0\0\0'
+        rows.append(bytes(row))
+    return png(size, b''.join(rows))
+
+
+def png(size, raw):
+    def chunk(kind, data):
+        return (struct.pack('>I', len(data)) + kind + data
+                + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff))
+    head = struct.pack('>IIBBBBB', size, size, 8, 6, 0, 0, 0)       # 8-bit RGBA
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', head)
+            + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
+
+
+if __name__ == '__main__':
+    for name, size, radius in (('icon-192.png', 192, 0.18), ('icon-512.png', 512, 0.18),
+                               ('icon-maskable-512.png', 512, 0),
+                               ('apple-touch-icon.png', 180, 0)):
+        (OUT / name).write_bytes(draw(size, radius))
+        print(name)
