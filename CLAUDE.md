@@ -131,7 +131,8 @@ drain               process the queue, rebuild the week and index pages, commit,
 publish             republish stale week artifacts and the index (Claude Code session only)
 status              health check
 worker              claim a job from the server, fetch, summarize, report (M2; live from M3)
-ops/                the worker's LaunchAgent template and render-worker-plist
+ops/                the worker's LaunchAgent template, render-worker-plist, make-icons (the
+                    app icons) and audit-http-log (Railway's HTTP log, credentials masked)
 lib/flatten.py      VTT -> timestamped prose; prefers manual captions, dedupes auto-captions
 lib/bundle.py       metadata + transcript + top comments, creator/low-signal filtered
 lib/clean.py        validate a raw summary's front matter, strip code fences, stamp `added`

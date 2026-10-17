@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Audit Railway's HTTP log (M4; where M5's log audit starts).
+
+Reads `railway logs --http --json` on stdin. Prints each request with `/u/<token>` and
+`/s/<id>` masked, and flags any line whose path or query could carry a video URL, ID or title
+(§11 J5). A flagged path is printed redacted, so the audit never echoes the content it found.
+
+    railway logs --service server --http --json -n 500 | ops/audit-http-log [since-iso]
+"""
+import json
+import re
+import sys
+
+since = sys.argv[1] if len(sys.argv) > 1 else ''
+SUSPECT = re.compile(r'youtu|watch|[?&](v|url|text|title)=|%2F%2F|https?:', re.I)
+flags = 0
+for line in sys.stdin:
+    try:
+        d = json.loads(line)
+    except ValueError:
+        continue
+    if d.get('timestamp', '') < since:
+        continue
+    path = d.get('path', '')
+    masked = re.sub(r'^/(u|s)/[^/?#]+', r'/\1/<masked>', path)
+    bad = bool(SUSPECT.search(path))
+    if bad:
+        flags += 1
+        masked = re.sub(r'[^/?=&]{4,}', '<redacted>', masked)   # never echo the content itself
+    ua = d.get('clientUa', '')
+    kind = ('android' if 'Android' in ua else 'ios' if re.search('iPhone|iPad', ua)
+            else 'mac' if 'Macintosh' in ua else ua[:20])
+    print(f"{d.get('timestamp', '')[:19]} {d.get('method', ''):5} {d.get('httpStatus', '')} "
+          f"{masked[:60]:60} {kind}{'  <-- FLAG' if bad else ''}")
+print(f'flagged lines: {flags}')

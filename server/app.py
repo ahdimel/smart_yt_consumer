@@ -6,7 +6,7 @@ Run locally:  server/.venv/bin/uvicorn server.app:create_app --factory --no-acce
 Each route accepts exactly one kind of credential (§8):
   user cookie       /, /welcome, /about, /add, /share, and /api/requests without an
                     Authorization header
-  user bearer       /api/requests with an Authorization header (iOS Shortcut)
+  user bearer       /api/requests with an Authorization header (scripts; no Shortcut since M4)
   admin cookie      /admin*
   worker bearer     /worker/*
   capability        /s/<public_id>: the unguessable ID is the credential (D3)

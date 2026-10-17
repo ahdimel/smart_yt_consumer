@@ -1,15 +1,16 @@
 # server/
 
 The Railway app from `docs/PROPOSAL.md` §5.1: intake, quotas, the shared cache, the worker
-protocol, the admin view (M1), and delivery: the summary page and Resend email (M3). Tested
-against §11 A–E, G, H and I. It has no intake modalities or retention purge yet (M4, M5).
+protocol, the admin view (M1), delivery: the summary page and Resend email (M3), and the intake
+modalities and intro page (M4). Tested against §11 A–E and G–J, plus M. It has no retention
+purge yet (M5).
 
 ## Run and test
 
 ```sh
 /Users/ahdimel/.pyenv/versions/3.13.2/bin/python3 -m venv server/.venv   # 3.13, as .python-version
 server/.venv/bin/pip install -r server/requirements-dev.txt
-server/.venv/bin/pytest -c server/pytest.ini server/tests
+server/.venv/bin/pytest -c server/pytest.ini server/tests    # the static/*.js tests need node
 
 # local server: the DB defaults to ~/.local/share/smart_yt_consumer/server.db, outside the repo
 export WORKER_TOKEN=dev-worker COOKIE_SECURE=0 PUBLIC_ORIGIN=http://127.0.0.1:8000
@@ -65,7 +66,9 @@ and 429 with no header at all. Every request was keyed on the real client IP, so
 | `auth.py` | Token hashing, the per-IP miss limiter, the Origin check |
 | `mail.py` | Outbox, Resend transport and the copy: exactly one email per finished job |
 | `render.py`, `summary.html` | The summary page, rendered from stored markdown by `lib/week.py` |
-| `static/` | `app.css`, and the summary page's `summary.css` and `summary.js` (Save as PDF) |
+| `pages.py` | The friend-facing pages: home, `/add`, the intro page's layout, refusal pages |
+| `intro.py` | **The words** of `/welcome` and `/about`, as HTML fragments. The owner's to rewrite |
+| `static/` | `app.css`; `summary.css` and `summary.js` (Save as PDF); `paste.js` (Paste and summarize); `add.js` (the bookmarklet page); the icons, drawn by `ops/make-icons` |
 | `app.py` | Routes and the credential each one accepts |
 | `cli.py` | `invite` (the first admin), `reissue` (a lost admin link), `test-email` |
 
@@ -124,8 +127,40 @@ Made while building M1. Revisit any of them by changing the code and its test.
   and summary capability IDs (`/s/<public_id>`) appear in Railway's HTTP logs, which the owner
   can read. The app's own logs contain neither, and no addresses or titles.
 
+## Intake and the intro page (M4)
+
+Choices made while building M4, and what production showed:
+
+- **iPhone has no Shortcut.** The owner chose a "Paste and summarize" button on the home page
+  instead (2026-10-16): a Shortcut meant pasting a token into it, too fiddly for the friends in
+  mind. `paste.js` reads the clipboard only on a tap, and sends it only when it names a YouTube
+  host. Anything else (a password, an address) never leaves the device. The bearer API is
+  unchanged.
+- **`/share` and the paste box answer with pages.** Success and the known refusals (invalid,
+  quota, busy, paused) redirect to `/?m=<code>`. 401 shows the private page, and 400, 403,
+  413, 415 and 429 show a sentence with a link home. JSON clients keep JSON.
+- **`/share` logs where it came from:** `share site=<Sec-Fetch-Site> origin=<absent|null|self|
+  other> cookie=<yes|no>`. Every cross-origin refusal logs the same categories. Values outside
+  the known set become `other`, so a header can't smuggle anything into the log. This is how
+  §12 (Chrome's Lax cookie on an OS share) gets answered on the first real share.
+- **No service worker.** Chrome on Android installs from the menu without one since 108 (WebAPK:
+  109). It stays in reserve as §12's fallback.
+- **The manifest and icons are public.** A linked manifest is fetched without cookies, and the
+  hostname already names the app. Strangers' pages don't link it (M3).
+- **`/add` refuses any query string** (405), so nobody builds a bookmarklet that logs the URL.
+  `add.js` wipes the fragment from the address bar before posting.
+- **`/about` ends with the setup blocks.** §5.4 calls `/about` "the intro page alone", but a
+  friend setting up a second device needs them somewhere. `/welcome` puts them first (§5.4 ¶7).
+- **Platform detection** is a substring match on `Android` and `iPhone|iPad|iPod`. iPads that
+  ask for the desktop site get the desktop block first. Safari on iOS 26 reports `iPhone OS
+  18_7`, so never match a version.
+- **Seen on real devices (2026-10-16/17):** Firefox (macOS, iOS) and Safari (iOS 26) send
+  `Origin: null` with `Sec-Fetch-Site: same-origin` on the paste box and on `add.js`'s `fetch`,
+  and both pass. On iOS every browser app has its own cookies. Safari's Add to Home Screen carries
+  the login into the icon.
+
 ## Not yet built
 
-M4: `/share`, `/add`, the manifest, `/welcome` and `/about` content (§11 J, M). The status and
+M4 leftovers: Android verified on a real device (`HANDOFF.md`, "Open from M4"). The status and
 history page (§11 L) is still a minimal list on `/`.
 M5: the retention purge (§11 K).

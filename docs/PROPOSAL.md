@@ -28,7 +28,7 @@ Settled with the owner on 2026-10-15:
 | Email | App mail: Resend from the subdomain **`notify.ahdimel.com`**, shared by every project; this app sends as `desloppify@notify.ahdimel.com`. People mail: `hello@ahdimel.com` on Proton Mail Plus. Set up and verified 2026-10-16 (§10.2) |
 | Scale & limits | ≤10 friends. Per user 5/day, 20/week, videos ≤ 3h. Global 40/day. All per-user adjustable |
 | Owner's digest | Owner becomes a user like everyone else. Weekly artifact digest and git queue are retired |
-| Extras | Status + history page; shared summary cache; share-sheet intake on every platform |
+| Extras | Status + history page; shared summary cache; share-sheet intake on Android and a bookmarklet on desktop. iPhone uses a "Paste and summarize" button instead of a share-sheet Shortcut (changed 2026-10-16, §5.2) |
 | Intro page | Explains the tool to invitees; shown on first visit and at `/about`. Strangers see one line (§5.4) |
 
 Design details, all accepted:
@@ -52,7 +52,7 @@ Design details, all accepted:
  ───────────────────────                     ──────────────────────                 ───────────
  paste box ─────────┐                        ┌──────────────────────┐
  Android share ─────┤  POST (cookie/bearer)  │ intake: validate URL │
- iOS Shortcut ──────┼──────────────────────► │ auth · quota · cache │
+ iPhone paste btn ──┼──────────────────────► │ auth · quota · cache │
  desktop bookmarklet┘                        │ SQLite: users, jobs, │   POST /worker/claim
                                              │   summaries, usage   │ ◄──────────────── worker (60 s)
                                              │                      │   job: video id     │ yt-dlp
@@ -162,10 +162,13 @@ All four modalities end up at the same API call.
 |---|---|---|
 | Any | Paste box on their invite page | Bookmark the page |
 | Android | PWA Web Share Target: the app appears in the system share sheet | Open the invite link in Chrome → "Install app" |
-| iPhone | iOS Shortcut: Share → Summarize. POSTs JSON with `Authorization: Bearer` | Import shortcut, paste token once |
+| iPhone | **"Paste and summarize"** on their page: YouTube → Share → Copy link, then one tap (iOS asks to confirm the paste). Changed 2026-10-16: the owner judged a Shortcut with a pasted token too complex for non-technical friends | Open the invite link in Safari, then Share → Add to Home Screen (on iOS 26 the icon stays signed in) |
 | Desktop | Bookmarklet: `open('https://app.<domain>/add#'+encodeURIComponent(location.href))` | Drag link to bookmarks bar |
 
-iOS Safari does not support Web Share Target, which is why iPhone needs the Shortcut. The
+iOS Safari does not support Web Share Target. The planned Shortcut (Share → Summarize, POSTing
+JSON with `Authorization: Bearer`) would have meant pasting a token into it once. The owner chose
+the paste button instead. The bearer API stays, and is tested (J6), for anyone who builds a
+Shortcut later. The paste button sends clipboard text only when it names a YouTube host. The
 bookmarklet uses a `#fragment` so the video URL never reaches the server's request logs.
 
 ### 5.3 Mac worker (`worker`, replaces `drain`)
@@ -220,7 +223,7 @@ their own voice**, because "trust me" only works in the voice of the person aski
    get their own. If a link leaks, I revoke it and send you a new one, no questions asked.
 6. **How to reach me.** `hello@ahdimel.com`. Replying to any summary email also lands there.
 7. **How to use it.** The setup block for their platform (paste box, Android install, iOS
-   Shortcut, bookmarklet). On `/welcome` this section comes first in the visual order.
+   paste button, bookmarklet). On `/welcome` this section comes first in the visual order.
 
 ### 5.5 Error codes
 
@@ -323,7 +326,7 @@ until they pass.
 | **M2** ✅ | **Worker.** Claim/lease loop, per-job dirs, error classification, usage reporting, result retention, LaunchAgent | Done 2026-10-16: §11 F green (`tests/test_worker.py`, `tests/test_worker_server.py`); one real video end-to-end against a local server. The LaunchAgent was installed in M3 and is live against production |
 | **M3a** ✅ | **Domain, guided (§10.2).** Pick and buy the domain; connect it to Railway and Resend | Done 2026-10-16: every record answers on 8.8.8.8, 1.1.1.1 and Namecheap's own server; Railway serves HTTPS on `desloppify.ahdimel.com` (CNAME and verify TXT added in M3); Resend green; test mail in the inbox at Gmail and Proton |
 | **M3** ✅ | **Delivery.** Summary page with Save-as-PDF, Resend emails, Railway deploy with a volume | Done 2026-10-16: §11 H, I green; email from production passes SPF, DKIM and DMARC at Gmail and Proton; the Mac worker completed one real job end to end against production (`HANDOFF.md`) |
-| **M4** | **Intake modalities and intro page.** PWA manifest and share target, bookmarklet page, iOS Shortcut, `/welcome` and `/about` (§5.4), with the copy rewritten by the owner | Manually verified on one Android, one iPhone, one desktop; §11 J, M green |
+| **M4** ✅ | **Intake modalities and intro page.** PWA manifest and share target, bookmarklet page, a paste button in place of the iOS Shortcut (§5.2), `/welcome` and `/about` (§5.4), with the copy rewritten by the owner | Done 2026-10-17 except two open items: §11 J, M green; verified against production on an iPhone (iOS 26: Safari, Firefox) and a Mac (Firefox). **Open:** Android on a real device (§12), and the owner's rewrite of the draft copy (`HANDOFF.md`) |
 | **M5** | **Retention and privacy audit.** Purge job, log audit, admin-response audit | §11 K green; a manual pass over Railway logs shows no content |
 | **M5b** | **Summarization revisit — gate before any invite.** Rewrite the summaries so they stand alone for someone who has never seen the video (§10.3). A/B with `tools/ab/` against today's production, including a blind read. Fold in the M0 lean flags if they still hold | §10.3 metrics met; the owner signs off on the summaries of 5 reference videos; tokens per summary recorded and the token ceiling (§7) set from them |
 | **M6** | **Cutover.** Retire `drain`, `publish` and the git queue; update README, CLAUDE.md, HANDOFF; invite friends | Old LaunchAgent unloaded; owner and one friend each complete a request in production |
@@ -653,7 +656,7 @@ Reject with `invalid_url`:
 | J3 | `POST /share` with only a title | `invalid_url` page with the paste box pre-shown |
 | J4 | `/manifest.webmanifest` declares `share_target` with POST + form-encoded |  |
 | J5 | `/add` page script reads `location.hash` and POSTs; the server never sees the URL in a path or query (assert on the request log) |  |
-| J6 | Bearer JSON `{url}` (iOS Shortcut) and `text/plain` body both accepted |  |
+| J6 | Bearer JSON `{url}` and `text/plain` body both accepted | The iOS Shortcut that would have used it was dropped in M4 (§5.2); the API stays |
 | J7 | Every route that accepts a video URL rejects GET with query parameters (405) |  |
 
 ### K. Retention and privacy
@@ -695,7 +698,8 @@ Reject with `invalid_url`:
   `--max-budget-usd` flag.
 - **Android share target and `SameSite=Lax`.** Whether Chrome attaches a Lax cookie to an
   OS-initiated share-target POST must be verified on a device in M4. Fallback: a service worker
-  catches the share POST and re-issues it same-origin.
+  catches the share POST and re-issues it same-origin. **Still open after M4** (no Android phone
+  to hand). Each `/share` logs `share site=… origin=… cookie=…`, which answers it on first use.
 - **Laptop availability.** Jobs wait while the MacBook sleeps (D6). The status page sets that
   expectation. If friends find it frustrating, revisit D6.
 - **Subscription limits are invisible.** The CLI reports tokens, not how close the account is

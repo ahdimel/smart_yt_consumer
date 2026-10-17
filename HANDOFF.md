@@ -1,6 +1,6 @@
 # Handoff
 
-State of the project as of 2026-10-16, for whoever picks it up next. `README.md` explains the
+State of the project as of 2026-10-17, for whoever picks it up next. `README.md` explains the
 method and setup; `CLAUDE.md` holds the working rules for agents. This file covers what is true
 right now, what is fragile, and what is tied to one person's machine.
 
@@ -17,8 +17,23 @@ Build against it; don't reopen the decisions without asking.
 | M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Deployed in M3. Choices the proposal left open are listed in `server/README.md` |
 | M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
 | M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
-| **M4: intake and intro page** | **Next.** Brief below |
-| M5, M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone**. Only the owner has a production login |
+| M4: intake and intro page | ✅ 2026-10-17, **except two open items** below. `/share` (Android share target), `/add` (bookmarklet), the manifest and icons, a "Paste and summarize" button, `/welcome` and `/about`; refused browser forms answer with pages. §11 J, M green (251 server tests). Verified against production from Firefox on the Mac (paste box, bookmarklet: new video and cache hit), and on an iPhone 15 Pro, iOS 26 (paste button in Safari and Firefox, sign-in in Chrome, the Home Screen icon, email → summary page → timestamp chips into the YouTube app). The HTTP log showed no URL, video ID or title on any of these paths |
+| **M5: retention and privacy audit** | **Next.** Brief below |
+| M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone**. Only the owner has a production login |
+
+**Open from M4** (do these before M6, ideally in the next deploy):
+1. **Android is unverified on a device.** The owner has no Android phone yet. The share target is
+   built and tested, but §12's question (does Chrome attach the `SameSite=Lax` cookie to an
+   OS-started share POST, and with which `Sec-Fetch-Site`?) is unanswered. Every `/share` writes
+   one app-log line, `share site=<…> origin=<…> cookie=<yes|no>`, which answers it. Steps are in
+   `ops.local.txt` §12. `cookie=no` or `refused cross_origin` means the fallback: a service
+   worker at `/sw.js` that catches the share POST and re-posts it same-origin.
+2. **The intro copy is Claude's draft.** The owner rewrites `server/intro.py` in their own voice
+   (its docstring explains the `$` placeholders). Production runs `be329a8`; the commits after it
+   (`/favicon.ico`, the "each browser signs in on its own" line, iPhone → Home Screen) go out with
+   the rewrite, in one deploy.
+3. Minor: on the owner's iPhone the icon showed white bars on **black**, not the blue square. Most
+   likely iOS's Dark/Tinted icon appearance recolouring it; unconfirmed.
 
 Things a new agent should know:
 - **The existing pipeline keeps running until the M6 cutover.** `drain`, its LaunchAgent, the
@@ -46,69 +61,78 @@ Things a new agent should know:
 - **The owner wants infra steps walked through one at a time,** with an outside check after
   each step (see how M3a was done in `docs/PROPOSAL.md` §10.2).
 
-## M4 brief: intake modalities and the intro page
+## M5 brief: retention purge and privacy audit
 
-Spec: §5.2 (intake), §5.4 (intro page), §2 "Intro page" and "Extras", tests §11 J and M.
-Done when (§10): manually verified on one Android, one iPhone and one desktop, and §11 J and M
-are green. The owner rewrites the intro copy in their own voice, so leave time for that round.
+Spec: §6 (privacy design), §11 K, the M5 row of §10, and "Railway request logs" in §6's table.
+Done when (§10): §11 K is green, and a manual pass over Railway's logs shows no content.
 
 **What exists.**
-- Production at `https://desloppify.ahdimel.com` (M3), with the owner as the only user (admin).
-  `GET /welcome` and `/about` are placeholders; `/` is the M1 paste box and a bare job list.
-  `POST /api/requests` already takes JSON `{url}`, form `url`/`text`, and `text/plain`, by
-  cookie or by bearer (J6's server side).
-- `server/pages.py` builds HTML with `html.escape` and no template engine. The CSP allows
-  script and style only from `'self'`, so every script is a file under `server/static/`. Add it
-  to `STATIC_TYPES` in `app.py`, which also serves its content type. `summary.js` is the
-  example.
-- `auth.same_origin()` guards every cookie POST. See below for what it learned in M3.
+- **Retention is enforced at read time, but nothing is ever deleted.** `/s/<id>` returns 410 once
+  `min(summaries.expires_at, jobs.finished_at + 30 days)` has passed, and the cache lookup in
+  `intake.submit` skips expired rows. But `summaries` rows and `jobs.video_id` stay in the
+  database forever. M5 adds the purge (K1, K2). `test_purged_is_410` in
+  `server/tests/test_summary_page.py` already simulates its effect.
+- Usage columns live on `jobs` and must survive the purge (§5.1). The admin view never selects
+  content columns (G3); M5's admin-response audit re-runs that over every admin route after a
+  purge.
+- **The app's own log** holds only these lines: `started mailer=`, `submit job= user= status=`,
+  `claim job= attempt=`, `complete|fail job=` (`rejected=`), `mail job= attempt= outcome=
+  http=`, `mail job= error=`, `mail loop error=`, `invite|revoke|reissue user=`,
+  `paused|resumed`, `share site= origin= cookie=` and `refused cross_origin site= origin=
+  cookie=` (M4: categories only, never header values).
+- **`ops/audit-http-log`** reads `railway logs --http --json`, masks `/u/<token>` and
+  `/s/<id>`, and flags any path or query that could carry a URL, ID or title. Through M4 it
+  flagged nothing. Railway's HTTP log records `path`, `clientUa` and `srcIp`, and no Referer
+  or body.
+- The Mac worker removes `.work/<job>/` at job end (F1–F3), and its log has no content (F15).
 
 **Things to get right:**
-- **`POST /share` (Android share target).** It accepts `url`, `text` (the YouTube app puts the
-  link there) or only `title` (J1–J3). It is a cookie POST that the OS starts, not a page, so
-  check which `Sec-Fetch-Site` and `Origin` Chrome actually sends, and whether the `SameSite=Lax`
-  cookie comes along (§12). Verify on a real device before trusting a test. The fallback is a
-  service worker that catches the share and re-posts it same-origin.
-- **`/add` (bookmarklet).** The URL travels in `#fragment`, which never reaches the server. The
-  page's script (a static file) reads `location.hash` and POSTs it. J5 asserts on the request
-  log that the server never saw the URL in a path or query, and J7 that intake routes refuse GET
-  with a query string (405).
-- **The iOS Shortcut** posts JSON with `Authorization: Bearer <token>`. The friend pastes their
-  token once. The intro page must explain this without showing the token anywhere it could leak
-  (no query strings, nothing logged).
-- **`/manifest.webmanifest`** declares `share_target` with POST and form encoding (J4). Icons
-  are static files too.
-- **`/welcome` and `/about` (§5.4).** Claude drafts from §5.4's outline; **the owner rewrites the
-  copy.** `/welcome` puts the setup block matching the User-Agent first and collapses the others
-  (§11 M5). Limits come from the user's row, not hardcoded numbers (§11 M6). With no cookie, both return
-  the bare "Private, invite-only." page (§11 M3, M4).
-- **Browser forms should show errors as a page, not JSON.** A refused paste-box POST (403, 401,
-  429) currently shows the raw JSON body. The redirect-with-message path in `submit` covers
-  quota and invalid URLs only.
-- **Don't invite anyone.** M5b gates that. Test devices use the owner's own login, or a
-  throwaway user that is revoked afterwards.
+- **The purge (K1, K2).** Delete `summaries` whose `expires_at <= now`, and null `jobs.video_id`
+  once a job's 30 days are up. Only touch `done` and `failed` jobs: a `queued` job can be older
+  than 30 days if the Mac was off, and the worker needs its video ID. Run it in one `BEGIN
+  IMMEDIATE` transaction so it is safe beside a submit (K2), and from a loop in the app, the way
+  `mail_loop` runs. Admin totals and every usage column must be unchanged after it (K1).
+- **The owner can read capability URLs in Railway's HTTP log.** This is the biggest finding for
+  M5. Every summary view logs `/s/<public_id>`, and opening that path shows the friend's
+  summary. So "the owner never sees content" holds only while the owner doesn't open a path from
+  their own log. The same goes for `/u/<token>`, which logs anyone in as that friend. Options:
+  move the capability into a `#fragment` (`/s#<id>`, with a static script fetching it by POST,
+  like `/add`), shorten Railway's log retention, or accept it and say so on `/about`. **This is
+  the owner's call: ask before building.**
+- **Other places content lives** (§6's table): Resend's dashboard keeps titles (D1). Check
+  Resend's retention for this plan, and whether logs can be shortened. Browsers keep `/u/<token>`
+  in their history wherever the invite link was opened (seen in M4). The friend's own inbox and
+  PDFs are theirs.
+- **K3** captures app logs over a full submit → claim → complete → email cycle, and greps for
+  the canary title, the video ID and `youtube`. **K4**: nothing under the repo is written outside
+  gitignored paths. **K5** was done in M0.
+- **Scanners arrived within hours** of the hostname going live: phishing-kit paths and
+  `/.git/HEAD`, from Android-like user-agents. All 404. Expect them in any manual log pass;
+  they're noise, not friends.
+- **Don't invite anyone.** M5b still gates that.
 
-**What M3 learned, for whoever touches the server:**
-- **`Referrer-Policy: no-referrer` makes browsers send `Origin: null`** on their own same-origin
-  form POSTs (Fetch standard). M1's check refused that, so every browser form returned 403 in
-  production until `same_origin()` learned to trust `Sec-Fetch-Site: same-origin`. The test
-  client sends a real Origin, so tests alone didn't catch it. Try every new form from a real
-  browser against production.
-- **Proton's rspamd rejects app mail to an `@ahdimel.com` mailbox** when `Reply-To` equals `To`
-  and the body links to the young `desloppify.` hostname; either alone passes. `mail.py` drops
-  Reply-To when it equals the recipient. A friend on `@proton.me` is untested.
-- **Proton files the summary email under "Newsletters"** (seen on the first production job).
-  It arrives, but in a category the reader may not check. The intro page's setup steps should
-  say where to look, and suggest adding the sender to contacts (§10.2 step 6).
-- **Railway:** new services can't use `railway.json` (deprecated; its replacement is
-  `.railway/railway.ts`). The healthcheck and restart policy were set once through `railway api`.
-  The edge overwrites `X-Real-IP` (checked by forgery, `server/README.md`). `railway ssh` needs
-  the key registered with a bare `railway ssh keys add`. FastAPI's `@app.get` doesn't answer
-  HEAD, so `/healthz` declares it for `curl -I`.
-- **Failure emails carry no title**, because the worker reports none (`server/README.md`).
-  Fixing that touches the worker, so it waits for M5b.
-- **Railway's HTTP log records paths**, including `/u/<token>` and `/s/<public_id>`. The app's
-  own log holds job IDs, codes and outcomes only. M5's audit should start from this.
+**What M3 and M4 learned, for whoever touches the server:**
+- **Try every form and route from a real browser against production.** With `Referrer-Policy:
+  no-referrer`, browsers send `Origin: null` on their own same-origin POSTs, which test clients
+  don't. `same_origin()` trusts `Sec-Fetch-Site: same-origin` for that (M3). In M4, Firefox on
+  macOS and iOS and Safari on iOS 26 all passed the paste box and `/add`'s `fetch` this way.
+- **iOS:** each browser app has its own cookies (Safari, Chrome and Firefox on one phone sign in
+  separately). On iOS 26, Safari's **Add to Home Screen** carries the login into the icon.
+  Safari on iOS 26 reports `iPhone OS 18_7` in its User-Agent (frozen), so match on `iPhone`,
+  never on a version.
+- **No iOS Shortcut.** The owner judged both token-paste designs too complex for non-technical
+  friends (2026-10-16). iPhone users get "Paste and summarize" plus a Home Screen icon. The
+  bearer API (`POST /api/requests` with `Authorization: Bearer`) stays and is tested (J6).
+  `paste.js` sends clipboard text only when it names a YouTube host.
+- **Proton files the summary email under "Newsletters".** `/welcome` says so. Proton's rspamd
+  also rejects app mail to an `@ahdimel.com` mailbox when `Reply-To` equals `To` and the body
+  links to `desloppify.`; `mail.py` drops Reply-To in that case.
+- **Railway:** no `railway.json` for new services. The healthcheck was set through `railway api`.
+  The edge overwrites `X-Real-IP`. `railway ssh` needs `railway ssh keys add` once. FastAPI's
+  `@app.get` doesn't answer HEAD. Deploy only with `railway up` from a clean tree, and ask
+  first.
+- **Failure emails carry no title**, because the worker reports none. That fix touches the
+  worker, so it waits for M5b.
 
 ## The existing pipeline (state as of 2026-10-07, still running)
 
