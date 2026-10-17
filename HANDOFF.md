@@ -17,7 +17,7 @@ Build against it; don't reopen the decisions without asking.
 | M1: server core | ✅ 2026-10-16. `server/`: FastAPI + SQLite, invites, cookie/bearer auth, URL validation, quotas, cache + coalescing, admin view, pause, worker protocol. 154 tests (§11 A–E, G) green; smoke-tested under uvicorn. Deployed in M3. Choices the proposal left open are listed in `server/README.md` |
 | M2: worker | ✅ 2026-10-16. `worker` (stdlib Python, 3.9+) plus `ops/worker.plist.template` and `ops/render-worker-plist`. §11 F green: 37 tests against a fake server in `tests/test_worker.py`, 5 against the real server in `tests/test_worker_server.py`. Installed and live against production since M3 |
 | M3: delivery | ✅ 2026-10-16. `/s/<id>` summary page with Save as PDF, Resend email with a retry loop, Railway deploy at `https://desloppify.ahdimel.com`. §11 H, I green (196 server tests). Email from production passes SPF, DKIM and DMARC at Gmail and Proton. The worker LaunchAgent completed one real job end to end: submit → claim → summary (181 s, $0.54) → email → page. Its logs and Railway's hold no URL, video ID or title |
-| M4: intake and intro page | ✅ 2026-10-17, **except two open items** below. `/share` (Android share target), `/add` (bookmarklet), the manifest and icons, a "Paste and summarize" button, `/welcome` and `/about`; refused browser forms answer with pages. §11 J, M green (251 server tests). Verified against production from Firefox on the Mac (paste box, bookmarklet: new video and cache hit), and on an iPhone 15 Pro, iOS 26 (paste button in Safari and Firefox, sign-in in Chrome, the Home Screen icon, email → summary page → timestamp chips into the YouTube app). The HTTP log showed no URL, video ID or title on any of these paths |
+| M4: intake and intro page | ✅ 2026-10-17, **except the open items** below. `/share` (Android share target), `/add` (bookmarklet), the manifest and icons, a "Paste and summarize" button, `/welcome` and `/about`; refused browser forms answer with pages. §11 J, M green (251 server tests). Verified against production from Firefox on the Mac (paste box, bookmarklet: new video and cache hit), and on an iPhone 15 Pro, iOS 26 (paste button in Safari and Firefox, sign-in in Chrome, the Home Screen icon, email → summary page → timestamp chips into the YouTube app). The HTTP log showed no URL, video ID or title on any of these paths |
 | **M5: retention and privacy audit** | **Next.** Brief below |
 | M5b, M6 | Not started. M5b (summaries that stand alone, §10.3) **gates inviting anyone**. Only the owner has a production login |
 
@@ -32,8 +32,17 @@ Build against it; don't reopen the decisions without asking.
    (its docstring explains the `$` placeholders). Production runs `be329a8`; the commits after it
    (`/favicon.ico`, the "each browser signs in on its own" line, iPhone → Home Screen) go out with
    the rewrite, in one deploy.
-3. Minor: on the owner's iPhone the icon showed white bars on **black**, not the blue square. Most
+3. **Email to a friend's `@proton.me` address is untested.** Only the owner's own
+   `@ahdimel.com` Proton mailbox has received app mail, and Proton's rspamd has been picky
+   (`mail.py` drops Reply-To because of it).
+4. Minor: on the owner's iPhone the icon showed white bars on **black**, not the blue square. Most
    likely iOS's Dark/Tinted icon appearance recolouring it; unconfirmed.
+
+Items 1 and 3 wait for the owner to find a friend with an Android phone or a Proton address.
+Neither is an invite (M5b still gates those). Use a **throwaway user** created from `/admin`
+(Android: the friend's phone opens its link; Proton: the friend's address as its email, sent a
+cached video, which costs no tokens), tell the owner, and revoke it right after. Don't leave the
+owner's own link, which is also the admin login, on someone else's phone.
 
 Things a new agent should know:
 - **The existing pipeline keeps running until the M6 cutover.** `drain`, its LaunchAgent, the
