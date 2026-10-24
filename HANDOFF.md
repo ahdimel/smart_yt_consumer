@@ -31,8 +31,9 @@ Build against it; don't reopen the decisions without asking.
    worker at `/sw.js` that catches the share POST and re-posts it same-origin.
 2. **The intro copy is Claude's draft.** The owner rewrites `server/intro.py` in their own voice
    (its docstring explains the `$` placeholders). The owner had it in mind to ship the rewrite
-   together with M4's last commits, but asked for M5 to go out first: production runs `6224314`
-   (2026-10-17), with the draft copy, which only the owner can see. The rewrite goes out in its
+   together with M4's last commits, but asked for M5 to go out first: production runs `9a6a601`
+   (deployed 2026-10-23 for the token rotation; its server code is identical to `6224314`'s),
+   with the draft copy, which only the owner can see. The rewrite goes out in its
    own deploy. It must keep what M5 added to the privacy block: the owner can read summary and
    invite links in the host's request log (up to 90 days) and in Resend's dashboard (30 days,
    with the title).
@@ -57,8 +58,13 @@ Things a new agent should know:
   repo holds no Railway IDs: keep it that way. Deploy with `railway up --service server --ci`
   from a clean tree (`ops.local.txt` §10). Deploys never follow a git push, because drain pushes
   every 15 minutes. **Ask the owner before every deploy.** `server.cli` runs inside the service
-  through `railway ssh` (§2). Secrets (`WORKER_TOKEN`, `RESEND_API_KEY`) live in Railway; don't
-  print them with `railway variable list --kv`.
+  through `railway ssh` (§2). Secrets (`WORKER_TOKEN`, `RESEND_API_KEY`) live in Railway,
+  **sealed** since 2026-10-23: the dashboard, CLI and API no longer return their values, so
+  `railway variable list` omits them. Rotate by setting a new value (`ops.local.txt` §14); a
+  check that the Mac and Railway tokens match is no longer possible, so test with a worker run.
+  Both were rotated on 2026-10-23 after Railway's Oct 21 env-var leak. Railway could not
+  redeploy deployments from before that incident, so a variable change then needed a fresh
+  `railway up`.
 - **The summarization engine is frozen until M5b:** same prompt, Opus, high effort, flags as in
   `drain`. The worker adds only `--no-session-persistence --output-format json` (D8).
 - **The repo is public.** No friend data and no secrets, ever. Secrets live in Railway env vars,

@@ -44,7 +44,8 @@ and `lib/week.py`, nothing else. One replica, with a volume mounted at `/data` a
 Railway no longer lets new services use `railway.json`, and its replacement
 (`.railway/railway.ts`) wasn't worth adopting for one setting.
 Deploys are `railway up` from a clean `main`, never on push: drain pushes to `main` every 15
-minutes. The exact commands, including running `server.cli` inside the service with `railway
+minutes. `WORKER_TOKEN` and `RESEND_API_KEY` are sealed in Railway (2026-10-23): deployments
+receive them, but nothing reads them back, so rotating one means setting a new value. The exact commands, including running `server.cli` inside the service with `railway
 ssh`, are in `ops.local.txt` on the owner's Mac.
 
 `CLIENT_IP_HEADER`: Railway's docs name `X-Real-IP` as the client IP, but don't say whether a
